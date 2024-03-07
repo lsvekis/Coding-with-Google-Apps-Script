@@ -1,0 +1,40 @@
+const SHEET_ID = '1lBa1WHvB8MgKCUN8GTI2G-3ECTZG3QvZwtZwPD9L-OM';
+
+function doGet() {
+ return HtmlService.createHtmlOutputFromFile('index');
+}
+function submitFeedback(form) {
+ const timestamp = new Date();
+ const feedback = form.feedback;
+  //Store feedback in Google Sheet
+ const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('data');
+ sheet.appendRow([timestamp, feedback]);
+  return "Feedback submitted successfully!";
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <script>
+    function submitForm() {
+      var feedback = document.getElementById("feedback").value;
+      google.script.run.withSuccessHandler(onSuccess).submitFeedback({feedback: feedback});
+      document.getElementById("feedback").value = ""; // Clear the input field after submission
+      document.getElementById("submitMessage").innerHTML = "Feedback submitted successfully!";
+    }
+    function onSuccess(mes) {
+       console.log(mes);
+      }
+  </script>
+</head>
+<body>
+  <h1>Feedback Form</h1>
+  <form>
+    <label for="feedback">Enter your feedback:</label><br>
+    <textarea id="feedback" name="feedback" rows="4" cols="50"></textarea><br><br>
+    <input type="button" value="Submit" onclick="submitForm()">
+  </form>
+  <p id="submitMessage"></p>
+</body>
+</html>

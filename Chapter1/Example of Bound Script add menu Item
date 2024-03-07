@@ -1,0 +1,10 @@
+function onOpen() {
+ const ui = SpreadsheetApp.getUi();
+ ui.createMenu('Custom Menu')
+ .addItem('Clear Range', 'clearRange')
+ .addToUi();
+}
+function clearRange() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ sheet.getRange('A1:D10').clear();
+}

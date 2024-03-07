@@ -1,0 +1,4 @@
+function writeToSheet() {
+ const sheet = SpreadsheetApp.openById('your-spreadsheet-id').getActiveSheet();
+ sheet.getRange('A1').setValue('Hello, Google Sheets!');
+}

@@ -1,0 +1,12 @@
+function createCalendarEvents() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const data = sheet.getDataRange().getValues();
+  data.forEach(function(row) {
+ const eventTitle = row[0];
+ const eventDate = row[1];
+ const eventDescription = row[2];
+  //Create Calendar Event
+ const calendar = CalendarApp.getDefaultCalendar();
+ calendar.createEvent(eventTitle, new Date(eventDate), new Date(eventDate), {description: eventDescription});
+ });
+}

@@ -1,0 +1,12 @@
+function myFunction() {
+ try {
+ // Code that may throw an exception
+ const result = 1 / 0; // Example of code that will cause an exception
+ } catch (e) {
+ // Code to handle the exception
+ Logger.log('An error occurred: ' + e.toString());
+ } finally {
+ // Code that will run regardless of the try / catch result
+ Logger.log('Function execution has ended.');
+ }
+}

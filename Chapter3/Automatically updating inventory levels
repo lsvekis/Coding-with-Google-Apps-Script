@@ -1,0 +1,25 @@
+function updateInventoryData() {
+  const inventoryData = [
+    { item: 'Apples', quantity: 50 },
+    { item: 'Bananas', quantity: 30 },
+    { item: 'Oranges', quantity: 20 },
+    { item: 'Grapes', quantity: 40 },
+    { item: 'Strawberries', quantity: 25 }
+  ];
+
+  inventoryData.forEach(item => {
+    updateInventory(item.item, item.quantity);
+  });
+}
+
+function updateInventory(item, quantity) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Inventory');
+  const data = sheet.getDataRange().getValues();
+  
+  data.forEach((row, index) => {
+    if (row[0] === item) { // Assuming the item name is in the first column
+      const newQuantity = row[1] + quantity; // Assuming the quantity is in the second column
+      sheet.getRange(index + 1, 2).setValue(newQuantity); // Update the sheet
+    }
+  });
+}

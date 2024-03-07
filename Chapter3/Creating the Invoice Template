@@ -1,5 +1,5 @@
 function testGen1() {
-  generateInvoice(2); // Test with client ID 1
+  generateInvoice(1); // Test with client ID 1
 }
 function generateInvoice(clientId) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -17,9 +17,21 @@ function generateInvoice(clientId) {
   // Send invoice via email (optional)
   // sendInvoiceAsPDF(clientId, clientInfo.email, invoiceSheet); // Implement this function
 }
+function replacePlaceholder(sheet, placeholder, value) {
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  
+  for (let i = 0; i < values.length; i++) {
+    for (let j = 0; j < values[i].length; j++) {
+      if (values[i][j] === placeholder) {
+        sheet.getRange(i + 1, j + 1).setValue(value);
+      }
+    }
+  }
+}
 function getClientInfo(clientId) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const clientSheet = ss.getSheetByName('Clients');
+  const clientSheet = ss.getSheetByName('InvoiceTemplate');
   const data = clientSheet.getDataRange().getValues();
   // Assuming the client IDs are in the first column of the Clients sheet
   for (let i = 1; i < data.length; i++) {

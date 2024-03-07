@@ -1,0 +1,3 @@
+function CELSIUS_TO_FAHRENHEIT(celsius) {
+ return (celsius * 9 / 5) + 32;
+}

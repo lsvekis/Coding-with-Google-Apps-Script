@@ -1,0 +1,4 @@
+function checkUnreadEmails() {
+ const unread = GmailApp.getInboxUnreadCount();
+ Logger.log('You have ' + unread + ' unread emails.');
+}

@@ -1,0 +1,39 @@
+function generateInvoice() {
+  const customerId = '1';
+  const invoiceData = getInvoiceDataForCustomer(customerId); // Implement this function based on your data structure
+  const templateSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('InvoiceTemplate');
+  
+  // Check if invoice sheet already exists for the customer, create one if it doesn't
+  let invoiceSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Invoice - ' + customerId);
+  
+  if (!invoiceSheet) {
+    invoiceSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Invoice - ' + customerId);
+    templateSheet.getRange('A1:Z100').copyTo(invoiceSheet.getRange('A1:Z100')); // Adjust range according to your template size
+  } else {
+    // Clear existing content except for the template
+    invoiceSheet.getRange('A2:Z100').clear();
+  }
+  
+  // Fill in the invoice details in invoiceSheet using invoiceData
+  const dataRows = invoiceData.map(item => [item.description, item.quantity, item.unitPrice, item.total]);
+  invoiceSheet.getRange(2, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
+}
+
+function getInvoiceDataForCustomer(customerId) {
+  // This function should return invoice data for the given customer ID
+  // Implement this function based on your data structure
+  // Example data structure:
+  const invoiceData = [
+    { description: 'Product A', quantity: 2, unitPrice: 10, total: 20 },
+    { description: 'Product B', quantity: 1, unitPrice: 15, total: 15 },
+    { description: 'Product C', quantity: 3, unitPrice: 8, total: 24 }
+  ];
+  return invoiceData;
+}
+
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Menu')
+    .addItem('Generate Invoice', 'generateInvoice')
+    .addToUi();
+}

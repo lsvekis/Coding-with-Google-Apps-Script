@@ -1,0 +1,36 @@
+function generateReport() {
+  // Check if 'Report' sheet exists, create one if it doesn't
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = spreadsheet.getSheetByName('Report');
+  
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet('Report');
+  }
+  
+  // Clear existing content
+  sheet.clear();
+  
+  // Insert headers
+  const headers = ['Column A', 'Column B', 'Column C']; // Example headers
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  
+  // Insert data
+  const data = [
+    { data1: 'Value 1', data2: 'Value 2', data3: 'Value 3' },
+    { data1: 'Value 4', data2: 'Value 5', data3: 'Value 6' },
+    { data1: 'Value 7', data2: 'Value 8', data3: 'Value 9' }
+  ];
+  
+  const dataArray = data.map(item => [item.data1, item.data2, item.data3]);
+  sheet.getRange(2, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+  
+  // Add timestamp
+  sheet.getRange('A1').setValue('Report generated on ' + new Date());
+}
+
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Menu')
+    .addItem('Generate Report', 'generateReport')
+    .addToUi();
+}

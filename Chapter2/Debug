@@ -1,0 +1,5 @@
+function debugExample() {
+ Logger.log('This is a debug message');
+ const value = 'test';
+ Logger.log('The value is: ' + value);
+}

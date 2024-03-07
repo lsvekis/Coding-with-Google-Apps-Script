@@ -1,0 +1,12 @@
+function sendEmails() {
+ const formResponses = FormApp.openById('FORM_ID').getResponses();
+ const template = HtmlService.createHtmlOutputFromFile('emailTemplate').getContent();
+ 
+ formResponses.forEach(function(response) {
+ const respondentEmail = response.getRespondentEmail();
+ const emailSubject = "Thank you for your response!";
+ const emailBody = "Here is the email content...";
+  //Send email
+ MailApp.sendEmail(respondentEmail, emailSubject, emailBody, {htmlBody: template});
+ });
+}

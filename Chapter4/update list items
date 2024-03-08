@@ -1,0 +1,8 @@
+function updateListProperties() {
+ const doc = DocumentApp.getActiveDocument();
+ const body = doc.getBody();
+ const listItems = body.getListItems();
+  listItems.forEach(function(listItem) {
+ listItem.setIndentStart(40).setLineSpacing(1.5); // Change indent and line spacing
+ });
+}

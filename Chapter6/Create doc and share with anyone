@@ -1,0 +1,8 @@
+function createDocumentAndShare() {
+ const doc = DocumentApp.create('New Document');
+ const body = doc.getBody();
+ body.appendParagraph('This is a new document created with Google Apps Script.');
+ const fileId = doc.getId();
+ const file = DriveApp.getFileById(fileId);
+ file.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
+}

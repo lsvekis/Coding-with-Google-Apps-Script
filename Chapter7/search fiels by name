@@ -1,0 +1,7 @@
+function searchFilesByTitle() {
+ const files = DriveApp.getFilesByName('test');
+ while (files.hasNext()) {
+ const file = files.next();
+ Logger.log('File Name: ' + file.getName() + ', ID: ' + file.getId());
+ }
+}

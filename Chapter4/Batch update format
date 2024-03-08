@@ -1,0 +1,9 @@
+function batchUpdateFormat(docId) {
+ const doc = DocumentApp.openById(docId);
+ const body = doc.getBody();
+  // Assuming you want to format the first 5 paragraphs
+ const paragraphs = body.getParagraphs().slice(0, 5);
+ paragraphs.forEach(function(paragraph) {
+ paragraph.editAsText().setBold(true).setForegroundColor('#555555');
+ });
+}

@@ -1,0 +1,30 @@
+function getChartFromSheetAndInsertIntoSlide() {
+  // ID of the Google Sheets spreadsheet
+  const spreadsheetId = 'SHEETID';
+  // Name of the sheet containing the chart
+  const sheetName = 'data';
+  // Get the chart as an image blob
+  const chartImageBlob = getChartAsImageBlob(spreadsheetId, sheetName);
+  // Insert the image blob into the first slide of the presentation
+  if (chartImageBlob) {
+    const presentation = SlidesApp.openById(SLIDEID);
+    const slide = presentation.getSlides()[0];
+    slide.insertImage(chartImageBlob);
+  }
+}
+
+function getChartAsImageBlob(spreadsheetId, sheetName) {
+  // Open the spreadsheet
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  // Get the sheet
+  const sheet = spreadsheet.getSheetByName(sheetName);
+  // Get the chart
+  const chart = sheet.getCharts()[0]; // Assuming the chart is the first chart in the sheet
+   if (!chart) {
+    console.log('No chart found in the specified sheet.');
+    return null;
+  }
+   // Get the chart as an image blob
+  const chartImageBlob = chart.getAs('image/png');
+  return chartImageBlob;
+}

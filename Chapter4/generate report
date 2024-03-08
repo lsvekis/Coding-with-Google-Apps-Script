@@ -1,0 +1,21 @@
+function generateReport() {
+  const data = [['Name', 'Sales'], ['Alice', 1500], ['Bob', 1200]]; // Example data
+  const templateId = '1LAa1p4eY9cE3Z1EFZZ_ILmK_TEzEZAmhe1SdQFR5W50';
+  // Use DriveApp to copy the document
+  const copiedFile = DriveApp.getFileById(templateId).makeCopy('Sales Report');
+  const copiedFileId = copiedFile.getId();
+  // Then open the copied document for editing
+  const doc = DocumentApp.openById(copiedFileId);
+  const body = doc.getBody();
+  data.forEach(function(row, index) {
+    if (index === 0) { // Assuming first row is headers
+      // Creating a new paragraph for each header and setting it to bold
+      body.appendParagraph(row.join('\t')).setBold(true);
+    } else {
+      // Creating a new paragraph for each data row
+      body.appendParagraph(row.join('\t'));
+    }
+  });
+  // No need to explicitly save, as changes are automatically saved
+  doc.saveAndClose(); // This line can actually be omitted as the document is auto-saved
+}

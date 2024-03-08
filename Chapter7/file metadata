@@ -1,0 +1,12 @@
+function getFileMetadata() {
+ const file = DriveApp.getFileById(FILEID);
+ const metadata = {
+ title: file.getName(),
+ description: file.getDescription(),
+ createdDate: file.getDateCreated(),
+ modifiedDate: file.getLastUpdated(),
+ mimeType: file.getMimeType()
+ };
+ Logger.log(metadata);
+ return metadata;
+}

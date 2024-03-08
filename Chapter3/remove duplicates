@@ -1,0 +1,17 @@
+function removeDuplicates() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const data = sheet.getDataRange().getValues();
+ const uniqueData = [];
+ const duplicateIndices = [];
+  data.forEach((row, index) => {
+ const serializedRow = row.join('-'); // Create a string representation of the row
+ if (uniqueData.indexOf(serializedRow) === -1) {
+ uniqueData.push(serializedRow); // Add unique row to the list
+ } else {
+ duplicateIndices.push(index + 1); // +1 because array is 0-based but Sheets are 1-based
+ } });
+  // Remove duplicates from the bottom to not mess up the indices
+ duplicateIndices.reverse().forEach((rowIndex) => {
+ sheet.deleteRow(rowIndex);
+ });
+}

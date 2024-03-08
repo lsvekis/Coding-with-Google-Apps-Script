@@ -1,0 +1,21 @@
+function generateDataTable(docId, data) {
+ const doc = DocumentApp.openById(docId);
+ const body = doc.getBody();
+ const table = body.appendTable();
+  data.forEach(function(rowData) {
+ const row = table.appendTableRow();
+ rowData.forEach(function(cellData) {
+ row.appendTableCell(cellData.toString());
+ });
+ });
+}
+function addSampleDataTable() {
+  const docId = DOCID; // Replace with your actual document ID
+  const data = [
+    ['Product Name', 'Quantity', 'Price'], // Header row
+    ['Apples', '10', '$2.00'],
+    ['Bananas', '8', '$1.50'],
+    ['Carrots', '15', '$3.00']
+  ];
+  generateDataTable(docId, data);
+}

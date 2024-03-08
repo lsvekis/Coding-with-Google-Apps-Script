@@ -1,0 +1,7 @@
+function extractDocumentText() {
+ const documentId = 'your-document-id';
+ const doc = DocumentApp.openById(documentId);
+ const body = doc.getBody();
+ const text = body.getText();
+  Logger.log(text); // Outputs the entire document text to the logs
+}

@@ -1,8 +1,16 @@
 function testGen1() {
   generateInvoice(1); // Test with client ID 1
 }
+function sendInvoiceAsPDF(clientId, emailAddress, invoiceSheet) {
+ const pdf = DriveApp.getFileById(invoiceSheet).getAs('application/pdf');
+ const message = 'Dear ' + clientId + ',\nPlease find attached your latest invoice.';
+ const subject = 'Your Invoice from [Your Company]';
+ MailApp.sendEmail(emailAddress, subject, message, {attachments: [pdf]});
+}
+
 function generateInvoice(clientId) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
   const clientSheet = ss.getSheetByName('Clients');
   const invoiceTemplate = ss.getSheetByName('InvoiceTemplate');
   const invoiceSheet = ss.insertSheet('Invoice - ' + clientId);
@@ -15,7 +23,7 @@ function generateInvoice(clientId) {
   replacePlaceholder(invoiceSheet, '{{ClientAddress}}', clientInfo.address);
   // Add more placeholders as needed
   // Send invoice via email (optional)
-  // sendInvoiceAsPDF(clientId, clientInfo.email, invoiceSheet); // Implement this function
+  sendInvoiceAsPDF(clientId, clientInfo.email, ss.getId()); // Implement this function
 }
 function replacePlaceholder(sheet, placeholder, value) {
   const range = sheet.getDataRange();

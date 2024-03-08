@@ -6,7 +6,7 @@
  * @customfunction
  */
 function HIGHEST_SALE(salesData) {
- const highestSale = 0;
+ let highestSale = 0;
  salesData.forEach(function(row) {
  row.forEach(function(cell) {
  if (cell > highestSale) {

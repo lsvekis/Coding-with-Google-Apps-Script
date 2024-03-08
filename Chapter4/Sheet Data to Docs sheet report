@@ -1,0 +1,29 @@
+function generateSheetReport() {
+ const data = getDataFromSheet(); // Implement this function to fetch data from a sheet
+ const documentId = 'your-document-id';
+ const doc = DocumentApp.openById(DOCID);
+ const body = doc.getBody();
+ 
+ // Example: Append data as new paragraphs
+ data.forEach(function(item) {
+ body.appendParagraph('Name: ' + item.name);
+ body.appendParagraph('Sales: ' + item.sales);
+ body.appendPageBreak(); // Add a page break after each item
+ });
+}
+function getDataFromSheet() {
+  const sheet = SpreadsheetApp.openById(SHEEETID).getSheets()[0];
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  
+  const data = [];
+  // Assuming the first row contains headers: Name, Sales
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    data.push({
+      name: row[0], // Assuming the first column contains the name
+      sales: row[1] // Assuming the second column contains the sales
+    });
+  }
+  return data;
+}

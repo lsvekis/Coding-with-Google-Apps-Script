@@ -1,0 +1,22 @@
+function createForm() {
+  const form = FormApp.create('New Event Feedback Form');
+  form.setDescription('Please provide your feedback');
+
+  // Adding a multiple-choice item
+  const satisfactionQuestion = form.addMultipleChoiceItem();
+  satisfactionQuestion.setTitle('How satisfied were you with the event?');
+
+  // Correctly setting the choices
+  satisfactionQuestion.setChoices([
+    satisfactionQuestion.createChoice('Very Satisfied'),
+    satisfactionQuestion.createChoice('Satisfied'),
+    satisfactionQuestion.createChoice('Neutral'),
+    satisfactionQuestion.createChoice('Dissatisfied'),
+    satisfactionQuestion.createChoice('Very Dissatisfied')
+  ]);
+  
+  // Adding a paragraph text item for additional comments
+  form.addParagraphTextItem().setTitle('Please provide additional comments');
+
+  Logger.log('Form created: ' + form.getPublishedUrl());
+}

@@ -1,0 +1,7 @@
+const DOCID = '1LAa1p4eY9cE3Z1EFZZ_ILmK_TEzEZAmhe1SdQFR5W50';
+function addContentToDocument() {
+ const docId = 'your-document-id';
+ const doc = DocumentApp.openById(DOCID);
+ const body = doc.getBody();
+ body.appendParagraph('New content added to the existing document.');
+}

@@ -1,0 +1,24 @@
+function formatReportForPrinting() {
+  const doc = DocumentApp.openById(DOCID);
+  const body = doc.getBody();
+  // Set custom page margins: top, right, bottom, left (in points)
+  doc.getBody().setMarginTop(72) // 1 inch
+    .setMarginRight(72)
+    .setMarginBottom(72)
+    .setMarginLeft(72);
+  // Apply styles to headings and content for better readability
+  const paragraphs = body.getParagraphs();
+  paragraphs.forEach(function (paragraph, index) {
+    if (index === 0) { // Assuming first paragraph is the title
+      paragraph.setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    } else if (paragraph.getText().startsWith('Section')) { // Section headings
+      paragraph.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    } else {
+      paragraph.setAlignment(DocumentApp.HorizontalAlignment.JUSTIFY);
+    }
+  }); // Set document to landscape orientation
+  const style = {};
+  style[DocumentApp.Attribute.PAGE_WIDTH] = 842; // A4 paper size in points
+  style[DocumentApp.Attribute.PAGE_HEIGHT] = 595;
+  body.setAttributes(style);
+}

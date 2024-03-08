@@ -1,0 +1,9 @@
+function createPivotTable() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getDataRange();
+ const pivotTableSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet();
+ const pivotTableRange = pivotTableSheet.getRange('A1');
+ const pivotTable = pivotTableRange.createPivotTable(range);
+ pivotTable.addRowGroup(1); // Group data by the values in the first column
+ pivotTable.addPivotValue(2, SpreadsheetApp.PivotTableSummarizeFunction.SUM); // Sum values from the second column
+}

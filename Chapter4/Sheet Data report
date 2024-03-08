@@ -1,0 +1,23 @@
+function getReportData() {
+  // Example: Fetching data from a Google Sheet
+  const sheetId = SHEEETID; // Replace with your actual sheet ID
+  const rangeName = 'Sheet1!A1:E10'; // Adjust the range according to your data
+  const values = SpreadsheetApp.openById(sheetId).getSheets()[0].getDataRange().getValues();
+  if (!values) {
+    Logger.log('No data found.');
+    return [];
+  }
+  return values;
+}
+
+function generateTableReport() {
+  const data = getReportData();
+  const doc = DocumentApp.create('Monthly Sales Report');
+  const body = doc.getBody();
+  // Insert report title and date
+  body.appendParagraph('Monthly Sales Report').setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  body.appendParagraph('Date: ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMMM dd, yyyy"));
+  // Insert data as a table in the document
+  body.appendTable(data);
+  Logger.log('Report generated: ' + doc.getUrl());
+}

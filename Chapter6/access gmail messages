@@ -1,0 +1,9 @@
+function accessGmail() {
+ const threads = GmailApp.getInboxThreads(0, 10); // Get the first 10 threads in the inbox
+ threads.forEach(function(thread) {
+ const messages = thread.getMessages();
+ messages.forEach(function(message) {
+ Logger.log('Subject: ' + message.getSubject());
+ });
+ });
+}

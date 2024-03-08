@@ -1,0 +1,30 @@
+function createAdvancedFormFromSheet() {
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data2');
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  const form = FormApp.create('Advanced Form from Spreadsheet');
+  values.forEach(function (row, index) {
+    if (index === 0) return; // Skip header
+    const type = row[0]; // Question type
+    const question = row[1]; // Question text
+    const options = row.slice(2); // Options for multiple choice
+    switch (type) {
+      case 'MULTIPLE_CHOICE':
+        const multipleChoiceItem = form.addMultipleChoiceItem();
+        multipleChoiceItem.setTitle(question);
+        const choices = options.map(option => multipleChoiceItem.createChoice(option));
+        multipleChoiceItem.setChoices(choices);
+        break;
+      case 'TEXT':
+        form.addTextItem()
+          .setTitle(question);
+        break;
+      case 'PARAGRAPH_TEXT':
+        form.addParagraphTextItem()
+          .setTitle(question);
+        break;
+      // Add more cases as needed
+    }
+  });
+  Logger.log('Advanced form created: ' + form.getPublishedUrl());
+}

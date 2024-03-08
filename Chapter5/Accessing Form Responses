@@ -1,0 +1,13 @@
+function getFormResponses() {
+const form = FormApp.openById(FORMID);
+ const responses = form.getResponses();
+ // Process each response
+ responses.forEach(function(response) {
+ const items = response.getItemResponses();
+ items.forEach(function(item) {
+ const question = item.getItem().getTitle();
+ const answer = item.getResponse();
+ // Do something with question and answer
+ });
+ });
+}

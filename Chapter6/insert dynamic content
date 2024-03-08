@@ -1,0 +1,9 @@
+function insertDynamicContent() {
+  const presentation = SlidesApp.openById(SLIDEID);
+  const slides = presentation.getSlides();
+  slides.forEach(function(slide) {
+    const date = new Date().toDateString();
+    const textBox = slide.insertTextBox('Today\'s Date: ' + date);
+    textBox.setLeft(100).setTop(100).setWidth(400).setHeight(50);
+  });
+}

@@ -1,0 +1,23 @@
+function updatePermissions() {
+  const accessLevel = 'view';
+  const userEmail = 'stakeholder1@example.com';
+  const file = DriveApp.getFileById(FILEID);
+  const user = Session.getActiveUser().getEmail();
+  if (user === EMAIL) { // Check if the user has the necessary permissions
+    file.removeEditor(userEmail); // Remove existing permission
+    switch (accessLevel) {
+      case 'view':
+        file.addViewer(userEmail); // Grant view access
+        break;
+      case 'edit':
+        file.addEditor(userEmail); // Grant edit access
+        break;
+      case 'comment':
+        file.addCommenter(userEmail); // Grant comment access
+        break;
+      default:
+        // Handle invalid access level
+        break;
+    }
+  }
+}

@@ -1,0 +1,11 @@
+function autoFillData() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const currentDate = new Date();
+ const data = [
+ [currentDate, 'Customer A', 'Product X', 10],
+ [currentDate, 'Customer B', 'Product Y', 15]
+ // Add more rows as needed
+ ];
+ const range = sheet.getRange('A2:D' + (data.length + 1));
+ range.setValues(data);
+}

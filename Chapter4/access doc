@@ -1,0 +1,6 @@
+function openDocument() {
+ const documentId = 'your-document-id'; // Replace with your document's ID
+ const doc = DocumentApp.openById(documentId);
+ const body = doc.getBody();
+  // Now you can interact with the document's body
+}

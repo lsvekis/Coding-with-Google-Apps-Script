@@ -1,0 +1,25 @@
+function createPresentation() {
+  // Create a new Google Slides presentation
+  const presentation = SlidesApp.create('New Presentation');
+  
+  // Access the first slide in the presentation
+  const slide = presentation.getSlides()[0];
+  
+  // Set the title and subtitle for the first slide
+  const titleShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, 50, 50, 600, 50);
+  titleShape.getText().setText('Presentation Title');
+  
+  const subtitleShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, 50, 100, 600, 50);
+  subtitleShape.getText().setText('Subtitle');
+  
+  // Add some text to the first slide
+  const shape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, 50, 200, 600, 300);
+  shape.getText().setText('This is a sample text for the presentation.');
+  
+  // Access the second slide in the presentation
+  const slide2 = presentation.appendSlide(SlidesApp.PredefinedLayout.TITLE_AND_BODY);
+  
+  // Set the title and body content for the second slide
+  slide2.insertTextBox('Second Slide').setLeft(50).setTop(50).setWidth(600).setHeight(50);
+  slide2.insertTextBox('This is the body text for the second slide.').setLeft(50).setTop(100).setWidth(600).setHeight(300);
+}

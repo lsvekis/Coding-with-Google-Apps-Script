@@ -1,0 +1,13 @@
+function writeResponsesToSheet() {
+ const form = FormApp.openById('FORM_ID');
+ const responses = form.getResponses();
+ const sheet = SpreadsheetApp.openById('SHEET_ID').getActiveSheet();
+ responses.forEach(function(response) {
+ const items = response.getItemResponses();
+ const rowData = [];
+ items.forEach(function(item) {
+ rowData.push(item.getResponse());
+ });
+ sheet.appendRow(rowData);
+ });
+}

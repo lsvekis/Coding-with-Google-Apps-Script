@@ -1,0 +1,10 @@
+
+function getLatestResponse() {
+  const form = FormApp.openById(FORMID);
+  const formResponses = form.getResponses();
+  const latestResponse = formResponses[formResponses.length - 1]; // Get the latest response
+  const itemResponses = latestResponse.getItemResponses();
+  itemResponses.forEach(function (itemResponse) {
+    console.log(itemResponse.getItem().getTitle() + ': ' + itemResponse.getResponse());
+  });
+}

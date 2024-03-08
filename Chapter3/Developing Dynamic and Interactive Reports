@@ -1,0 +1,36 @@
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Report')
+    .addItem('Refresh Data', 'refreshData')
+    .addItem('Generate PDF', 'generatePdfReport')
+    .addToUi();
+}
+function generatePdfReport() {
+  const spreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  const sheetId = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getSheetId();
+  const url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId + '/export?';
+  const exportOptions =
+    'exportFormat=pdf&format=pdf' +
+    '&size=letter' +
+    '&portrait=true' +
+    '&fitw=true' +
+    '&sheetnames=false&printtitle=false' +
+    '&pagenumbers=false&gridlines=false' +
+    '&fzr=false' +
+    '&gid=' + sheetId;
+  const token = ScriptApp.getOAuthToken();
+  const response = UrlFetchApp.fetch(url + exportOptions, {
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  });
+  const blob = response.getBlob().setName('Custom Report.pdf');
+  // Here you can send the PDF via email or save it somewhere
+  // Email the PDF to the customer
+  MailApp.sendEmail({
+    to: 'gappscourses+2@gmail.com',
+    subject: 'Sample',
+    body: "Please find attached.",
+    attachments: [blob]
+  });
+}

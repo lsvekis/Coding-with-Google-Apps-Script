@@ -1,0 +1,10 @@
+function updateTable() {
+ const doc = DocumentApp.getActiveDocument();
+ const body = doc.getBody();
+ const tables = body.getTables();
+  if (tables.length > 0) {
+ const table = tables[0]; // Get the first table
+ table.getRow(1).getCell(2).setText('Updated Text'); // Update text in Row 2, Column 3
+ table.getRow(1).getCell(2).setBackgroundColor('#add8e6'); // Change background color
+ }
+}

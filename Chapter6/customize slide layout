@@ -1,0 +1,17 @@
+function customizeSlideLayout() {
+  const presentation = SlidesApp.openById(SLIDEID2);
+  const slide = presentation.getSlides()[0];
+  // Access shapes on the slide
+  const shapes = slide.getShapes();
+  // Iterate through the shapes to find the header and footer
+  shapes.forEach(function(shape) {
+    const text = shape.getText().asString(); // Get the text from the shape as a string
+    Logger.log(text);
+    if (text.startsWith("Header")) { // Check if the text starts with "Header"
+      shape.remove(); // Remove the shape if it's a header
+    }
+    if (text.startsWith("Footer")) { // Check if the text starts with "Footer"
+      shape.remove(); // Remove the shape if it's a footer
+    }
+  });
+}

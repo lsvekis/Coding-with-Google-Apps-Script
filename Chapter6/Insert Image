@@ -1,0 +1,7 @@
+function insertImage() {
+ const presentation = SlidesApp.openById(SLIDEID);
+ const slide = presentation.getSlides()[0];
+ const imageUrl = 'https://www.discoveryvip.com/img/d.png';
+ const imageBlob = UrlFetchApp.fetch(imageUrl).getBlob();
+ slide.insertImage(imageBlob);
+}

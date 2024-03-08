@@ -1,0 +1,14 @@
+function highlightText() {
+ const keyword = 'Highlight';
+ const doc = DocumentApp.openById(DOCID);
+ const body = doc.getBody();
+ let foundElements = body.findText(keyword);
+  while (foundElements) {
+ const foundText = foundElements.getElement().asText();
+ const startOffset = foundElements.getStartOffset();
+ const endOffset = foundElements.getEndOffsetInclusive();
+  foundText.setBold(startOffset, endOffset, true); // Set the found text to bold
+ foundText.setForegroundColor(startOffset, endOffset, '#FF0000'); // Change text color to red
+  foundElements = body.findText(keyword, foundElements); // Find next instance
+ }
+}

@@ -1,0 +1,16 @@
+function setUpTrigger() {
+  const form = FormApp.openById(FORMID);
+  ScriptApp.newTrigger('processNewResponse')
+    .forForm(form)
+    .onFormSubmit()
+    .create();
+}
+function processNewResponse(event) {
+  const response = event.response;
+  const itemResponses = response.getItemResponses();
+  // Example: Log each response
+  itemResponses.forEach(function (itemResponse) {
+    Logger.log(itemResponse.getItem().getTitle() + ': ' + itemResponse.getResponse());
+  });
+  // Additional processing can be done here, like sending an email or updating a spreadsheet
+}

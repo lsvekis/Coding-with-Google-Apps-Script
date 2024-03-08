@@ -1,0 +1,25 @@
+function createFormFromSheetData() {
+ const ss = SpreadsheetApp.openById(SHEETID);
+ const sheet = ss.getSheetByName('Questions'); // Assuming a sheet named 'Questions'
+ const range = sheet.getDataRange();
+ const values = range.getValues();
+ const form = FormApp.create('New Dynamic Form');
+ values.forEach(function(row, i) {
+ // Skip header or empty rows
+ if (i === 0 || !row[0]) return;
+ const questionTitle = row[0];
+ const questionType = row[1]; // 'MCQ', 'Text', 'Checkbox', etc.
+ const options = row.slice(2); // Options for MCQs or Checkboxes
+ switch (questionType) {
+ case 'MCQ':
+ const mcqItem = form.addMultipleChoiceItem();
+ mcqItem.setTitle(questionTitle);
+ mcqItem.setChoices(options.filter(String).map(option => mcqItem.createChoice(option))); // Filter out empty strings
+ break;
+ case 'Text':
+ form.addTextItem().setTitle(questionTitle);
+ break;
+ // Handle other cases as needed
+ }
+ });
+}

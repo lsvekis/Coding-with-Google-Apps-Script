@@ -1,0 +1,19 @@
+function test() {
+  const data = {
+    "name": "Alex Johnson",
+    "date": "2024-03-10",
+    "address": "1234 Elm Street, YourCity, YourState, 12345"
+  }
+  const url = createDocumentFromTemplate(data);
+  Logger.log(url);
+}
+function createDocumentFromTemplate(data) {
+  const doc = DriveApp.getFileById(DOCID).makeCopy();
+  const id = doc.getId();
+  const body = DocumentApp.openById(id).getBody();
+  // Replace placeholders with actual data
+  body.replaceText('{{Name}}', data.name);
+  body.replaceText('{{Date}}', data.date);
+  body.replaceText('{{Address}}', data.address);
+  return DocumentApp.openById(id).getUrl();
+}

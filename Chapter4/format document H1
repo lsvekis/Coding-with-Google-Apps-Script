@@ -1,0 +1,10 @@
+function formatDocumentH1() {
+ const doc = DocumentApp.openById(DOCID);
+ const body = doc.getBody();
+  // Apply heading to the first paragraph
+ const firstParagraph = body.getParagraphs()[0];
+ firstParagraph.setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  // Change font and size of the second paragraph
+ const secondParagraph = body.getParagraphs()[1];
+ secondParagraph.editAsText().setFontFamily('Arial').setFontSize(12);
+}

@@ -1,0 +1,14 @@
+function validateEmail(inputCell) {
+ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Regular expression for validating email
+ return emailPattern.test(inputCell);
+}
+function testValidateEmail() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("emails"); // Change "Sheet1" to your sheet's name
+  const dataRange = sheet.getRange("B2:B13"); // Adjust the range according to your data
+  const inputStrings = dataRange.getValues();
+  
+  for (let i = 0; i < inputStrings.length; i++) {
+    const isValid = validateEmail(inputStrings[i][0]);
+    sheet.getRange(i + 2, 4).setValue(isValid); // Writing result to "Actual Result" column
+  }
+}

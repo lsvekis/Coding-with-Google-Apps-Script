@@ -1,0 +1,8 @@
+function updateSheetOnFormSubmit(e) {
+ const response = e.response;
+ const item = response.getItemResponses()[0];
+ const answer = item.getResponse();
+ const sheet = SpreadsheetApp.openById('SHEET_ID').getActiveSheet();
+ const range = sheet.getRange('A1'); // Update cell A1
+ range.setValue(answer);
+}

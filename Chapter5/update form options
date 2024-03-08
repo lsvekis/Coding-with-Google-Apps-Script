@@ -1,0 +1,15 @@
+function updateFormOptions() {
+ const form = FormApp.openById(FORMID);
+ const item = form.getItems(FormApp.ItemType.MULTIPLE_CHOICE)[0].asMultipleChoiceItem(); // Assuming the first item is your workshop question
+ const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data3');
+ const data = sheet.getDataRange().getValues(); // Assuming workshop names and slots are in columns A and B
+ const choices = [];
+ data.forEach(function(row) {
+ if (row[1] > 0) { // If slots are available
+ choices.push(row[0]); // Add workshop name to choices
+ }
+ });
+ item.setChoices(choices.map(function(choice) {
+ return item.createChoice(choice);
+ }));
+}

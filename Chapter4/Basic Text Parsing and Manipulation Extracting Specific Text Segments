@@ -1,0 +1,10 @@
+function extractTextSegments() {
+ const doc = DocumentApp.openById(DOCID);
+ const bodyText = doc.getBody().getText();
+ const segments = bodyText.match(/Important: ([^\n]+)/g); // Regex to extract lines starting with 'Important:'
+  if (segments) {
+ segments.forEach(function(segment) {
+ Logger.log(segment); // Log extracted segments
+ });
+ }
+}

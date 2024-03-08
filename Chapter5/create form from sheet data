@@ -1,0 +1,20 @@
+function createFormFromSheet() {
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data');
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  const form = FormApp.create('New Form from Spreadsheet'); // Name your form
+  values.forEach(function (row, index) {
+    if (index === 0) return; // Skip header row, if present
+    const question = row[0]; // Your question text
+    const options = row.slice(1, -1); // Answer options
+    const correctAnswer = row[row.length - 1]; // Correct answer
+    const item = form.addMultipleChoiceItem();
+    item.setTitle(question)
+      .setChoices(
+        options.map(function (option) {
+          return item.createChoice(option, option === correctAnswer);
+        })
+      );
+  });
+  Logger.log('Form created: ' + form.getPublishedUrl());
+}

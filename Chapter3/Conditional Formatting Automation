@@ -1,0 +1,13 @@
+function applyConditionalFormatting() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getRange('D2:D100'); // Assuming D column contains quantities
+ const rule = SpreadsheetApp.newConditionalFormatRule()
+ .whenNumberLessThan(5)
+ .setBackground('#FFC7CE')
+ .setFontColor('#9C0006')
+ .setRanges([range])
+ .build();
+ const rules = sheet.getConditionalFormatRules();
+ rules.push(rule);
+ sheet.setConditionalFormatRules(rules);
+}

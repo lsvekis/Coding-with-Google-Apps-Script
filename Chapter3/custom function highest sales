@@ -1,0 +1,18 @@
+/**
+ * Returns the highest sales figure from the range.
+ *
+ * @param {Array} salesData Range containing sales figures.
+ * @return {number} The highest sales figure.
+ * @customfunction
+ */
+function HIGHEST_SALE(salesData) {
+ const highestSale = 0;
+ salesData.forEach(function(row) {
+ row.forEach(function(cell) {
+ if (cell > highestSale) {
+ highestSale = cell;
+ }
+ });
+ });
+ return highestSale;
+}

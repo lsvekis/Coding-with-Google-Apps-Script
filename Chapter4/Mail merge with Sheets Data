@@ -1,0 +1,18 @@
+function runMailMerge() {
+  const sheetId = SHEEETID;
+  const templateId = DOCID;
+  performMailMerge(sheetId, templateId);
+}
+function performMailMerge(sheetId, templateId) {
+  const sheetData = SpreadsheetApp.openById(sheetId).getDataRange().getValues();
+  sheetData.shift(); // Remove header row
+  sheetData.forEach(function (row) {
+    const doc = DriveApp.getFileById(templateId).makeCopy();
+    const docBody = DocumentApp.openById(doc.getId()).getBody();
+    // Assuming the spreadsheet columns are Name, Date, Address respectively
+    docBody.replaceText('{{Name}}', row[0]);
+    docBody.replaceText('{{Date}}', row[1]);
+    docBody.replaceText('{{Address}}', row[2]);
+    // Further processing like renaming the document, sharing, or emailing can be done here
+  });
+}

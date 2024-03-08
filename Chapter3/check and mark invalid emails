@@ -1,0 +1,16 @@
+function checkAndMarkInvalidEmails() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('emails');
+  const emails = sheet.getDataRange().getValues(); // Adjust range accordingly
+  const invalidEmailsRange = [];
+  emails.forEach(function (email, index) {
+    if (!validateEmail(email[1])) { // If the email is invalid
+      invalidEmailsRange.push('B' + (index + 1)); // Collect range of invalid emails
+    }
+  });
+  Logger.log(invalidEmailsRange);
+  sheet.getRange('B2:B').clearFormat();
+  // Highlight invalid emails
+  if (invalidEmailsRange.length > 0) {
+    sheet.getRangeList(invalidEmailsRange).setBackground('red');
+  }
+}

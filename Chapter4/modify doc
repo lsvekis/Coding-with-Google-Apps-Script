@@ -1,0 +1,7 @@
+function appendTextToDocument() {
+ const documentId = 'your-document-id';
+ const doc = DocumentApp.openById(documentId);
+ const body = doc.getBody();
+  // Append text to the end of the document
+ body.appendParagraph('This is new text added to the document.');
+}

@@ -1,0 +1,15 @@
+function exportResponsesToSheet() {
+  const form = FormApp.openById(FORMID);
+  const formResponses = form.getResponses();
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Options');
+  const data = [];
+  formResponses.forEach(function (formResponse) {
+    const rowData = [];
+    const itemResponses = formResponse.getItemResponses();
+    itemResponses.forEach(function (itemResponse) {
+      rowData.push(itemResponse.getResponse());
+    });
+    data.push(rowData);
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, data.length, data[0].length).setValues(data);
+}

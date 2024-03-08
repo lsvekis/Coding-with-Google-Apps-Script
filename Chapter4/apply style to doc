@@ -1,0 +1,6 @@
+function formatTextInDocument() {
+ const doc = DocumentApp.openById(DOCID);
+ const body = doc.getBody();
+ const text = body.editAsText();
+ text.setFontSize(11).setBold(true).setForegroundColor('#FF0000');
+}

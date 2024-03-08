@@ -1,0 +1,37 @@
+function renameSheet(oldName, newName) {
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const sheet = ss.getSheetByName(oldName);
+ if (sheet) {
+ sheet.setName(newName);
+ } else {
+ Logger.log('Sheet not found.');
+ }
+}
+function testRenameSheet() {
+  // Array of test cases with old and new names
+  const testCases = [
+    {oldName: "Sheet9", newName: "RenamedSheet1"},
+    {oldName: "SheetDoesNotExist", newName: "ShouldFail"},
+    {oldName: "Sheet2", newName: "RenamedSheet2"}
+    // Add more test cases as needed
+  ];
+
+  // Iterate through each test case and attempt to rename the sheet
+  testCases.forEach((testCase) => {
+    try {
+      renameSheet(testCase.oldName, testCase.newName);
+      // Check if rename was successful by attempting to get the sheet with the new name
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(testCase.newName);
+      if (sheet) {
+        Logger.log(`Successfully renamed '${testCase.oldName}' to '${testCase.newName}'.`);
+      } else {
+        // If the sheet with the new name is not found, it indicates a failure in renaming
+        Logger.log(`Failed to rename '${testCase.oldName}'. The sheet with the new name '${testCase.newName}' was not found.`);
+      }
+    } catch (e) {
+      // Log any errors that occur during the renaming process
+      Logger.log(`Error renaming sheet from '${testCase.oldName}' to '${testCase.newName}': ${e.message}`);
+    }
+  });
+}

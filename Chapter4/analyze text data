@@ -1,0 +1,13 @@
+function analyzeTextData() {
+ const doc = DocumentApp.openById(DOCID);
+ const text = doc.getBody().getText();
+ const words = text.split(/\s+/); // Split text into words based on whitespace
+ const wordCount = {};
+  words.forEach(function(word) {
+ word = word.toLowerCase();
+ wordCount[word] = (wordCount[word] || 0) + 1; // Increment word count
+ });
+  for (let word in wordCount) {
+ Logger.log(word + ': ' + wordCount[word]); // Log each word's count
+ }
+}

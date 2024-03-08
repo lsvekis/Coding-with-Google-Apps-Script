@@ -1,0 +1,19 @@
+function runGenerateReport() {
+  // Replace these with your actual Spreadsheet and Document template IDs
+  const sheetId = SHEEETID;
+  const docTemplateId = DOCID;
+  generateReportFromSheet(sheetId, docTemplateId);
+}
+function generateReportFromSheet(sheetId, docTemplateId) {
+ const values = SpreadsheetApp.openById(sheetId).getSheets()[0].getDataRange().getValues();
+ const docCopy = DriveApp.getFileById(docTemplateId).makeCopy();
+ const body = DocumentApp.openById(docCopy.getId()).getBody();
+  values.forEach(function(row, index) {
+ if (index === 0) return; // Skip header row
+ const paragraph = body.appendParagraph('');
+ row.forEach(function(cell) {
+ paragraph.appendText(cell + '\t');
+ });
+ paragraph.appendText('\n'); // New line for each row of data
+ });
+}

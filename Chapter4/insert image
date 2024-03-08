@@ -1,0 +1,9 @@
+function insertImage() {
+ const doc = DocumentApp.getActiveDocument();
+ const body = doc.getBody();
+ const imageUrl = 'https://www.discoveryvip.com/img/d.png'; // Replace with your image URL
+  // Fetch the image and insert it into the document
+ const response = UrlFetchApp.fetch(imageUrl);
+ const imageBlob = response.getBlob();
+ body.appendImage(imageBlob);
+}

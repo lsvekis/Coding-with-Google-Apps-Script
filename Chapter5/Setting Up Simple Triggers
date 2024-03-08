@@ -1,0 +1,5 @@
+function onFormSubmit(e) {
+ const response = e.response;
+ const itemResponses = response.getItemResponses();
+ // Process form submission
+}

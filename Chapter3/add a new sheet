@@ -1,0 +1,5 @@
+function addNewSheet() {
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const newSheetName = 'Data-' + new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
+ ss.insertSheet(newSheetName);
+}

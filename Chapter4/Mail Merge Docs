@@ -1,0 +1,14 @@
+function mailMerge() {
+  const recipients = [['John Doe', 'john@example.com'], ['Jane Smith', 'jane@example.com']];
+  const templateId = DOCID;
+  recipients.forEach(function (recipient) {
+    const copiedFile = DriveApp.getFileById(templateId).makeCopy('Letter to ' + recipient[0]);
+    const copiedFileId = copiedFile.getId();
+    // Then open the copied document for editing
+    const doc = DocumentApp.openById(copiedFileId);
+    const body = doc.getBody();
+    body.replaceText('{{name}}', recipient[0]);
+    body.replaceText('{{email}}', recipient[1]);
+    doc.saveAndClose();
+  });
+}

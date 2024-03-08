@@ -1,0 +1,4 @@
+function updateFileDescription() {
+ const file = DriveApp.getFileById(FILEID);
+ file.setDescription('test');
+}

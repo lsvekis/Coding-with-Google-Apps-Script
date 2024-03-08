@@ -1,0 +1,76 @@
+function testGen1() {
+  generateInvoice(1); // Test with client ID 1
+}
+
+function sendInvoiceAsPDF(clientId, emailAddress, invoiceSheet) {
+  const pdf = DriveApp.getFileById(invoiceSheet).getAs('application/pdf');
+  const message = 'Dear ' + clientId + ',\nPlease find attached your latest invoice.';
+  const subject = 'Your Invoice from [Your Company]';
+  MailApp.sendEmail(emailAddress, subject, message, {attachments: [pdf]});
+}
+
+function generateInvoice(clientId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Ensure 'InvoiceTemplate' sheet exists
+  let invoiceTemplate = ss.getSheetByName('InvoiceTemplate');
+  if (!invoiceTemplate) {
+    return; // Exit function if template sheet doesn't exist
+  }
+  
+  const invoiceSheet = ss.insertSheet('Invoice - ' + clientId);
+  
+  // Copy the invoice template
+  invoiceTemplate.getRange('A1:Z100').copyTo(invoiceSheet.getRange('A1:Z100'));
+  
+  // Fetch client information
+  const clientInfo = getClientInfo(clientId); // Implement this function based on your Clients sheet
+  
+  if (!clientInfo) {
+    return; // Exit function if client info is not found
+  }
+  
+  // Replace placeholders with actual data
+  replacePlaceholder(invoiceSheet, '{{ClientName}}', clientInfo.name);
+  replacePlaceholder(invoiceSheet, '{{ClientAddress}}', clientInfo.address);
+  replacePlaceholder(invoiceSheet, '{{ClientEmail}}', clientInfo.email);
+  
+  // Send invoice via email (optional)
+  sendInvoiceAsPDF(clientId, clientInfo.email, invoiceSheet.getId()); // Implement this function
+}
+
+function replacePlaceholder(sheet, placeholder, value) {
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  
+  for (let i = 0; i < values.length; i++) {
+    for (let j = 0; j < values[i].length; j++) {
+      if (values[i][j] === placeholder) {
+        sheet.getRange(i + 1, j + 1).setValue(value);
+      }
+    }
+  }
+}
+
+function getClientInfo(clientId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const clientSheet = ss.getSheetByName('Clients');
+  if (!clientSheet) {
+    return null; // Exit function if Clients sheet doesn't exist
+  }
+  
+  const data = clientSheet.getDataRange().getValues();
+  // Assuming the client IDs are in the first column of the Clients sheet
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == clientId) {
+      return {
+        name: data[i][1], // Assuming client names are in the second column
+        address: data[i][2], // Assuming client addresses are in the third column
+        email: data[i][3] // Assuming client emails are in the fourth column
+        // Add more properties as needed
+      };
+    }
+  }
+  // If client ID is not found, return null or handle error as needed
+  return null;
+}

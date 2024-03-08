@@ -1,0 +1,20 @@
+function createList() {
+  const doc = DocumentApp.getActiveDocument();
+  const body = doc.getBody();
+  // Create a bulleted list
+  const items = ['Item 1', 'Item 2', 'Item 3'];
+  items.forEach(function(item) {
+    body.appendListItem(item).setGlyphType(DocumentApp.GlyphType.BULLET);
+  });
+  // Add a spacer between lists
+  body.appendParagraph('');
+  // Create a numbered list
+  let listItem = body.appendListItem(items[0]).setGlyphType(DocumentApp.GlyphType.NUMBER).setNestingLevel(0);
+  let listId = listItem.getListId(); // Get the list ID of the first item to ensure subsequent items belong to the same list
+  for (let i = 1; i < items.length; i++) {
+    listItem = body.appendListItem(items[i])
+                   .setGlyphType(DocumentApp.GlyphType.NUMBER)
+                   .setNestingLevel(0);
+    
+  }
+}

@@ -1,0 +1,16 @@
+function createTable() {
+ const doc = DocumentApp.getActiveDocument();
+ const body = doc.getBody();
+ const data = [
+ ['Header 1', 'Header 2', 'Header 3'],
+ ['Row 1, Cell 1', 'Row 1, Cell 2', 'Row 1, Cell 3'],
+ ['Row 2, Cell 1', 'Row 2, Cell 2', 'Row 2, Cell 3']
+ ];
+  const table = body.appendTable(data);
+  // Format the header row
+ const headerRow = table.getRow(0);
+ headerRow.setBackgroundColor('#f1f1f1');
+ for (let i = 0; i < headerRow.getNumCells(); i++) {
+ headerRow.getCell(i).setBold(true);
+ }
+}

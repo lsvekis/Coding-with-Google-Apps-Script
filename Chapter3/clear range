@@ -1,0 +1,6 @@
+function clearRange() {
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const sheet = ss.getActiveSheet();
+ const range = sheet.getRange('D1:E10');
+ range.clear(); // Clears content and formatting. Use clearContent() or clearFormat() for specific clear actions.
+}

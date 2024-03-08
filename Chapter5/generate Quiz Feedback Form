@@ -1,0 +1,19 @@
+function generateQuizFeedbackForm() {
+  const form = FormApp.create('Quiz Feedback Form');
+  // Define questions and correct answers
+  const questionsAndAnswers = { 'Question 1': 'Answer1', 'Question 2': 'Answer2' }; // Example answers
+  // Iterate through each question and create form items
+  Object.entries(questionsAndAnswers).forEach(([question, correctAnswer]) => {
+    const questionItem = form.addMultipleChoiceItem();
+    questionItem.setTitle(question);
+    questionItem.setChoiceValues([correctAnswer, 'Other']); // Provide correct answer and an option for 'Other'
+    // Set validation to ensure students select an option
+    questionItem.setRequired(true);
+  });
+  // Add an email question to capture student's email
+  form.addTextItem().setTitle('Your Email Address').setRequired(true);
+  // Add a paragraph text item for additional comments
+  form.addParagraphTextItem().setTitle('Additional Comments');
+  Logger.log('Feedback form created: ' + form.getId());
+  Logger.log('Feedback form created: ' + form.getPublishedUrl());
+}

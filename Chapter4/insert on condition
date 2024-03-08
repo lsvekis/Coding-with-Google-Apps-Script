@@ -1,0 +1,13 @@
+function insertConditionalText() {
+  const userData = {
+    name: "John Doe",
+    membershipLevel: "Gold" // or "Silver", "Bronze", etc., based on your program's levels
+  };
+  const doc = DocumentApp.openById(DOCID);
+  const body = doc.getBody();
+  if (userData.membershipLevel === 'Gold') {
+    body.appendParagraph('Thank you for being a Gold member!');
+  } else {
+    body.appendParagraph('Become a Gold member to enjoy more benefits.');
+  }
+}

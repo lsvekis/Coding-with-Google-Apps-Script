@@ -1,0 +1,30 @@
+function backupDocuments() {
+  const foldersToBackup = ['New Folder', 'test']; // List of folders to backup
+  foldersToBackup.forEach(function(folderName) {
+    const folders = DriveApp.getFoldersByName(folderName);
+    if (folders.hasNext()) {
+      const folder = folders.next();
+      const backupFolder = createBackupFolder(folderName);
+      backupFolderFromFolder(folder, backupFolder);
+    }
+  });
+}
+
+function createBackupFolder(folderName) {
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const backupFolderName = folderName + ' Backup ' + today;
+  const existingFolders = DriveApp.getFoldersByName(backupFolderName);
+  if (existingFolders.hasNext()) {
+    return existingFolders.next();
+  } else {
+    return DriveApp.createFolder(backupFolderName);
+  }
+}
+
+function backupFolderFromFolder(folder, backupFolder) {
+  const files = folder.getFiles();
+  while (files.hasNext()) {
+    const file = files.next();
+    file.makeCopy(file.getName(), backupFolder);
+  }
+}

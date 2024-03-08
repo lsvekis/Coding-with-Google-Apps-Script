@@ -1,0 +1,13 @@
+function sendCustomEmailResponses() {
+ const form = FormApp.openById(FORMID);
+ const formResponses = form.getResponses();
+ const latestResponse = formResponses[formResponses.length - 1];
+ const responseData = latestResponse.getItemResponses();
+ const userEmail = latestResponse.getRespondentEmail();
+ const feedback = responseData[1].getResponse(); // Assuming second question asks for textual feedback
+  MailApp.sendEmail({
+ to: userEmail,
+ subject: 'Thank you for your feedback',
+ htmlBody: 'We appreciate your feedback: <b>' + feedback + '</b>'
+ });
+}

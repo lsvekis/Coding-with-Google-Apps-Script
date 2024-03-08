@@ -1,0 +1,5 @@
+function createNewDocument() {
+ const doc = DocumentApp.create('New Automated Document');
+ const body = doc.getBody();
+ body.appendParagraph('This is a new paragraph in the newly created document.');
+}

@@ -1,0 +1,19 @@
+function createSlidesFromData() {
+  const presentation = SlidesApp.create('Dynamic Slides Presentation');
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data3');
+  const data = sheet.getDataRange().getValues();
+  
+  data.forEach(function(row) {
+    const slide = presentation.appendSlide();
+    const title = row[0];
+    const content = row[1];
+    
+    const titleTextBox = slide.insertTextBox(title);
+    titleTextBox.getText().setText(title);
+    titleTextBox.getText().getTextStyle().setBold(true);
+    
+    const contentTextBox = slide.insertTextBox(content);
+    contentTextBox.getText().setText(content);
+    contentTextBox.getText().getTextStyle().setFontSize(12);
+  });
+}

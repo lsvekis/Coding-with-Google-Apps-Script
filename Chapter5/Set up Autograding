@@ -1,0 +1,19 @@
+function setUpGradingTrigger() {
+  const form = FormApp.openById(QUIZID)
+  ScriptApp.newTrigger('gradeSubmissions')
+    .forForm(form)
+    .onFormSubmit()
+    .create();
+}
+function gradeSubmissions(event) {
+  const itemResponses = event.response.getItemResponses();
+  const score = 0;
+  // Define correct answers for each question
+  const correctAnswers = ['Answer1', 'Answer2', 'Answer3']; // Example
+  itemResponses.forEach(function (itemResponse, index) {
+    if (itemResponse.getResponse() === correctAnswers[index]) {
+      score++;
+    }
+  });
+  // Update score in a Google Sheet or send it via email
+}

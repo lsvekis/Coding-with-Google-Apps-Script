@@ -1,0 +1,5 @@
+function sortData() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getDataRange(); // Sorts all data in the sheet
+ range.sort({column: 2, ascending: true}); // Assuming column 2 (B) holds the data to sort by
+}

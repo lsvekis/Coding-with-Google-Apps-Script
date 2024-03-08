@@ -1,0 +1,14 @@
+function emailReportAsPDF( ) {
+ const doc = DocumentApp.openById(DOCID);
+ const pdf = doc.getAs('application/pdf');
+ const recipientEmail = 'gappscourses+2@gmail.com';
+ const subject = 'Monthly Sales Report';
+ const body = 'Please find attached the Monthly Sales Report.';
+  MailApp.sendEmail({
+ to: recipientEmail,
+ subject: subject,
+ body: body,
+ attachments: [pdf]
+ });
+  Logger.log('Report emailed to: ' + recipientEmail);
+}

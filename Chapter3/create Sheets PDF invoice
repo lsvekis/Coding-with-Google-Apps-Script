@@ -1,0 +1,46 @@
+function createInvoiceAndEmail() {
+  // Sample JSON data
+  var jsonData = {
+    "invoiceNumber": "123456",
+    "date": "2024-03-07",
+    "customerEmail": "gappscourses+2@gmail.com",
+    "items": [
+      { "description": "Item 1", "quantity": 2, "price": 10 },
+      { "description": "Item 2", "quantity": 1, "price": 20 }
+    ]
+  };
+  // Create a new Spreadsheet for the Invoice
+  var spreadsheet = SpreadsheetApp.create(`Invoice #${jsonData.invoiceNumber}`);
+  var sheet = spreadsheet.getActiveSheet();
+  // Set up the Invoice header
+  var headers = [["Invoice Number", jsonData.invoiceNumber], ["Date", jsonData.date]];
+  sheet.getRange(1, 1, headers.length, 2).setValues(headers);
+  // Set up the column headers for items
+  var itemHeaders = [["Description", "Quantity", "Price", "Total"]];
+  sheet.getRange(4, 1, 1, 4).setValues(itemHeaders);
+  // Populate the items in the invoice
+  var itemsData = jsonData.items.map(function (item) {
+    return [item.description, item.quantity, item.price, item.quantity * item.price];
+  });
+  sheet.getRange(5, 1, itemsData.length, 4).setValues(itemsData);
+  // Adjust column widths for readability
+  sheet.autoResizeColumns(1, 4);
+  // Convert the spreadsheet to PDF
+  SpreadsheetApp.flush();
+  Utilities.sleep(1000); // Delays for 1 second (1000 milliseconds)
+  const file = sendPDF(spreadsheet.getId(), jsonData.invoiceNumber, jsonData.customerEmail);
+  // Optionally, delete the spreadsheet if you don't want to keep it in your drive
+  DriveApp.getFileById(spreadsheet.getId()).setTrashed(true);
+}
+
+
+function sendPDF(id, invoiceNumber, customerEmail) {
+  const pdfBlob = DriveApp.getFileById(id).getAs('application/pdf').setName(`Invoice-${invoiceNumber}.pdf`);
+  // Email the PDF to the customer
+  MailApp.sendEmail({
+    to: customerEmail,
+    subject: `Invoice #${invoiceNumber}`,
+    body: "Please find attached your invoice.",
+    attachments: [pdfBlob]
+  });
+}

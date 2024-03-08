@@ -1,0 +1,15 @@
+function updateFormChoicesFromSheet() {
+ const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Options');
+ const range = sheet.getDataRange();
+ const values = range.getValues();
+ const form = FormApp.openById(FORMID);
+ const items = form.getItems(FormApp.ItemType.MULTIPLE_CHOICE);
+  if (items.length > 0) {
+    const multipleChoiceItem = items[0].asMultipleChoiceItem();
+    // Correct way to set choices
+    const choices = values.map(function(row) {
+      return multipleChoiceItem.createChoice(row[0]); // Use the createChoice method correctly
+    });
+    multipleChoiceItem.setChoices(choices);
+  }
+}

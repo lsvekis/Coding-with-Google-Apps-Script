@@ -1,0 +1,6 @@
+function createBackup() {
+ const originalSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+ const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd');
+ const newTitle = originalSpreadsheet.getName() + ' Backup ' + date;
+ DriveApp.getFileById(originalSpreadsheet.getId()).makeCopy(newTitle);
+}

@@ -1,0 +1,11 @@
+function manipulateTables() {
+  const doc = DocumentApp.openById(DOCID);
+  const body = doc.getBody();
+  // Create a table
+  const table = body.appendTable([
+    ['Header 1', 'Header 2'],
+    ['Cell 1', 'Cell 2']
+  ]);
+  // Format the first row as header
+  table.getRow(0).editAsText().setBold(true);
+}

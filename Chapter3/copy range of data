@@ -1,0 +1,8 @@
+function copyRange() {
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const sourceSheet = ss.getSheetByName('Source');
+ const targetSheet = ss.getSheetByName('Target');
+ const sourceRange = sourceSheet.getRange('A1:C10');
+ const targetRange = targetSheet.getRange('A1:C10');
+  sourceRange.copyTo(targetRange);
+}

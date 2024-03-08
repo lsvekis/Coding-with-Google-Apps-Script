@@ -1,0 +1,5 @@
+function insertText() {
+ const presentation = SlidesApp.openById(SLIDEID2);;
+ const slide = presentation.getSlides()[0];
+ slide.insertTextBox('Hello, World!');
+}

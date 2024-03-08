@@ -1,0 +1,17 @@
+function applyThemeToPresentation() {
+  const sourcePresentation = SlidesApp.openById(SLIDEID); // Presentation containing the theme
+  const targetPresentation = SlidesApp.openById(SLIDEID2); // Presentation to which the theme will be applied
+
+  // Copy slides from source presentation to target presentation
+  const sourceSlides = sourcePresentation.getSlides();
+  sourceSlides.forEach(function(slide) {
+    const copiedSlide = slide.duplicate();
+    targetPresentation.appendSlide(copiedSlide);
+  });
+
+  // Delete the first slide (it might be blank or have default theme)
+  const firstSlide = targetPresentation.getSlides()[0];
+  if (firstSlide) {
+    firstSlide.remove();
+  }
+}

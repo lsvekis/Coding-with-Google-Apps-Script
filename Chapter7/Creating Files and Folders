@@ -1,0 +1,7 @@
+function createNewDocument() {
+ const doc = DocumentApp.create('New Document');
+}
+Similarly, you can create folders using the Drive service:
+function createNewFolder() {
+ const folder = DriveApp.createFolder('New Folder');
+}

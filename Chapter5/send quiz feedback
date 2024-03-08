@@ -1,0 +1,20 @@
+function sendQuizFeedback() {
+  const form = FormApp.openById(QUIZID);
+  const responses = form.getResponses();
+  const latestResponse = responses[responses.length - 1];
+  const items = form.getItems();
+  let feedbackMessage = '';
+  const correctAnswers = { 'Question 1': 'Answer1', 'Question 2': 'Answer2' }; // Example answers
+  let emailUSER = latestResponse.getItemResponses()[2].getResponse();
+  latestResponse.getItemResponses().forEach(function (response, index) {
+    const questionTitle = items[index].getTitle();
+    const studentAnswer = response.getResponse();
+    Logger.log(studentAnswer);
+    //Your Email Address
+    const correctAnswer = correctAnswers[questionTitle];
+    feedbackMessage += questionTitle + '\n';
+    feedbackMessage += 'Your answer: ' + studentAnswer + '\n';
+    feedbackMessage += 'Correct answer: ' + correctAnswer + '\n\n';
+  });
+  MailApp.sendEmail(EMAIL, 'Quiz Feedback', feedbackMessage);
+}

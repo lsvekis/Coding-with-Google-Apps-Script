@@ -1,0 +1,6 @@
+function updateRange() {
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const sheet = ss.getActiveSheet();
+ const range = sheet.getRange('A1:B10');
+ range.setValue('Updated'); // Sets all cells in the range to 'Updated'
+}

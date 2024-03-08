@@ -1,0 +1,20 @@
+function setUpTrigger() {
+  const form = FormApp.openById(FORMID);
+  ScriptApp.newTrigger('processFormResponse')
+    .forForm(form)
+    .onFormSubmit()
+    .create();
+}
+// Function to process responses
+function processFormResponse(e) {
+  const responses = e.response.getItemResponses();
+  responses.forEach(function (response) {
+    // Process each response; for example, log the answers or store them in a spreadsheet
+    Logger.log('Question: ' + response.getItem().getTitle());
+    Logger.log('Answer: ' + response.getResponse());
+    const doc = DocumentApp.create('Form1');
+    const body = doc.getBody();
+    body.appendParagraph('Question: ' + response.getItem().getTitle());
+    body.appendParagraph('Answer: ' + response.getResponse());
+  });
+}

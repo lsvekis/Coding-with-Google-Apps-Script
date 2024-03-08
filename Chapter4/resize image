@@ -1,0 +1,9 @@
+function resizeImage() {
+ const doc = DocumentApp.getActiveDocument();
+ const body = doc.getBody();
+ const images = body.getImages();
+  if (images.length > 0) {
+ const image = images[0]; // Get the first image
+ image.setHeight(150).setWidth(150); // Resize the image
+ }
+}

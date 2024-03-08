@@ -1,0 +1,21 @@
+function main() {
+  updateStock(1001, 20); // Add stock
+  updateStock(1002, -5); // Decrease stock
+}
+function updateStock(itemID, quantity) {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inventory");
+ const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) { // Start from row 2 to skip headers
+ if (data[i][0] == itemID) { // Assuming item ID is in the first column
+ const currentQuantity = data[i][3]; // Assuming current quantity is in the fourth column
+ sheet.getRange(i + 1, 4).setValue(currentQuantity + quantity);
+ checkReorderLevel(itemID, data[i][3], data[i][4]); // Check if new stock level is below reorder level
+ break;
+ } }}
+function checkReorderLevel(itemID, currentQuantity, reorderLevel) {
+ if (currentQuantity <= reorderLevel) {
+ MailApp.sendEmail("gappscourses+2@gmail.com", "Reorder Alert for " + itemID,
+ "The stock level for " + itemID + " has fallen to " + currentQuantity +
+ ", which is at or below the reorder level of " + reorderLevel + ".");
+ }
+}

@@ -1,0 +1,8 @@
+function replaceTextInDocument() {
+ const documentId = 'your-document-id';
+ const doc = DocumentApp.openById(documentId);
+ const body = doc.getBody();
+ 
+ // Replace occurrences of 'old text' with 'new text'
+ body.replaceText('old text', 'new text');
+}

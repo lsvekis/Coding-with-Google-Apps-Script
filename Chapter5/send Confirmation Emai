@@ -1,0 +1,8 @@
+function sendConfirmationEmail(e) {
+ const response = e.response;
+ const respondentEmail = response.getRespondentEmail();
+ const formTitle = response.getFormTitle();
+ const subject = 'Thank you for your submission!';
+ const message = 'Dear respondent,\n\nThank you for completing the form: ' + formTitle + '.';
+ MailApp.sendEmail(respondentEmail, subject, message);
+}

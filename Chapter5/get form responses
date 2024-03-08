@@ -1,0 +1,10 @@
+function getAllResponses() {
+  const form = FormApp.openById(FORMID);
+ const formResponses = form.getResponses();
+  formResponses.forEach(function(formResponse) {
+ const itemResponses = formResponse.getItemResponses();
+ itemResponses.forEach(function(itemResponse) {
+ console.log(itemResponse.getItem().getTitle() + ': ' + itemResponse.getResponse());
+ });
+ });
+}

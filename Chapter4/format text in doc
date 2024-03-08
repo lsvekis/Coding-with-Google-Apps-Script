@@ -1,0 +1,9 @@
+function formatTextInDoc() {
+ const doc = DocumentApp.openById(DOCID);
+ const body = doc.getBody();
+ const paragraph = body.getParagraphs()[0]; // Get the first paragraph
+  paragraph.editAsText()
+ .setBold(true)
+ .setFontSize(14)
+ .setForegroundColor('#FF0000');
+}

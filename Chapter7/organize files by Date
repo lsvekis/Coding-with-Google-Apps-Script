@@ -1,0 +1,21 @@
+function organizeFilesByDate() {
+  const folder = DriveApp.createFolder('Sorted Files');
+  const files = DriveApp.getRootFolder().getFiles();
+  while (files.hasNext()) {
+    const file = files.next();
+    const dateCreated = file.getDateCreated();
+    const year = dateCreated.getFullYear();
+    const month = dateCreated.getMonth() + 1; // Months are zero-based
+    const subfolderName = year + '-' + month;
+    const subfolder = getOrCreateFolder(folder, subfolderName);
+    file.moveTo(subfolder);
+  }
+}
+function getOrCreateFolder(parentFolder, folderName) {
+  const folders = parentFolder.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
+  } else {
+    return parentFolder.createFolder(folderName);
+  }
+}

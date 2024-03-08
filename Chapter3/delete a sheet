@@ -1,0 +1,7 @@
+function deleteSheet(sheetName) {
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const sheet = ss.getSheetByName(sheetName);
+ if (sheet) {
+ ss.deleteSheet(sheet);
+ }
+}

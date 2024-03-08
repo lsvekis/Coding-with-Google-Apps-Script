@@ -1,0 +1,9 @@
+function generateSlidesFromTemplate() {
+ const presentation = SlidesApp.openById(SLIDEID);
+ const templateSlide = presentation.getSlides()[0];
+ const newData = ['Slide 1 Content', 'Slide 2 Content', 'Slide 3 Content'];
+ newData.forEach(function(content) {
+ const newSlide = templateSlide.duplicate();
+ newSlide.replaceAllText('{CONTENT}', content);
+ });
+}

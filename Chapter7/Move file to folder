@@ -1,0 +1,5 @@
+function moveFile() {
+ const file = DriveApp.getFileById(FILEID);
+ const folder = DriveApp.getFolderById(FOLDERID);
+ folder.addFile(file);
+}

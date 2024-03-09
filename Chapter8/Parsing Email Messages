@@ -1,0 +1,11 @@
+function parseEmail() {
+ const threads = GmailApp.getInboxThreads(0, 1); // Get the latest thread
+ const messages = threads[0].getMessages(); // Get messages in the thread
+ const message = messages[0];
+ const subject = message.getSubject();
+ const sender = message.getFrom();
+ const body = message.getPlainBody();
+ Logger.log('Subject: ' + subject);
+ Logger.log('From: ' + sender);
+ Logger.log('Body: ' + body);
+}

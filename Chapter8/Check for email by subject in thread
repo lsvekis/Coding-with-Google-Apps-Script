@@ -1,0 +1,12 @@
+function processIncomingEmails() {
+  const threads = GmailApp.search('subject:"Support Request"');
+  threads.forEach(function (thread) {
+    const messages = thread.getMessages();
+    messages.forEach(function (message) {
+      const sender = message.getFrom();
+      const body = message.getPlainBody();
+      // Process email content and trigger appropriate actions
+      Logger.log(body);
+    });
+  });
+}

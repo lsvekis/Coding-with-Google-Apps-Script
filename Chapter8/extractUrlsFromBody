@@ -1,0 +1,34 @@
+function parseEmail() {
+  const threads = GmailApp.getInboxThreads(0, 1); // Get the latest thread
+  if (threads.length > 0) { // Check if there's at least one thread
+    const messages = threads[0].getMessages(); // Get messages in the thread
+    if (messages.length > 0) { // Check if there's at least one message
+      const message = messages[0];
+      const subject = message.getSubject();
+      const sender = message.getFrom();
+      const body = message.getPlainBody();
+      Logger.log('Subject: ' + subject);
+      Logger.log('From: ' + sender);
+      Logger.log('Body: ' + body);
+      // Now call extractUrlsFromBody to log URLs from the body
+      extractUrlsFromBody(body);
+    }
+  }
+}
+
+function extractUrlsFromBody(body) {
+  // Check if body is a string
+  if (typeof body !== 'string') {
+    Logger.log('Invalid input: body is not a string.');
+    return; // Exit the function if body is not a string
+  }
+  const urls = body.match(/https?:\/\/\S+/g); // Regular expression to match URLs
+  if (urls !== null) {
+    Logger.log('URLs found in the email:');
+    urls.forEach(function(url) {
+      Logger.log(url);
+    });
+  } else {
+    Logger.log('No URLs found in the email.');
+  }
+}

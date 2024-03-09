@@ -1,0 +1,14 @@
+function processIncomingEmails() {
+ const threads = GmailApp.search('is:unread subject:"Action Required"');
+ threads.forEach(function(thread) {
+ const messages = thread.getMessages();
+ messages.forEach(function(message) {
+ const body = message.getPlainBody();
+ if (body.includes('Approve')) {
+ // Trigger approval workflow
+ } else if (body.includes('Reject')) {
+ // Trigger rejection workflow
+ }
+ });
+ });
+}

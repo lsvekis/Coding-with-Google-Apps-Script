@@ -1,0 +1,14 @@
+function archiveOldEmails2() {
+  const labelName = 'OlderThanAYear'; // Specify the label name you want to use
+  let label = GmailApp.getUserLabelByName(labelName);
+  // Create the label if it doesn't exist
+  if (!label) {
+    label = GmailApp.createLabel(labelName);
+  }
+  const threads = GmailApp.search('label:inbox older_than:1y');
+  threads.forEach(function(thread) {
+    // Apply the label to each thread before archiving, if you want
+    thread.addLabel(label);
+    thread.moveToArchive();
+  });
+}

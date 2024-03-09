@@ -1,0 +1,6 @@
+function sendEmail() {
+ const recipient = EMAIL;
+ const subject = 'Test Email';
+ const body = 'This is a test email sent using Google Apps Script!';
+ MailApp.sendEmail(recipient, subject, body);
+}

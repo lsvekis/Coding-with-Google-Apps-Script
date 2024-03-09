@@ -1,0 +1,6 @@
+function deleteLabel() {
+ const label = GmailApp.getUserLabelByName('Work');
+ if (label) {
+ label.deleteLabel();
+ }
+}

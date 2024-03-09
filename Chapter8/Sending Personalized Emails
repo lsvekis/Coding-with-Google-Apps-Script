@@ -1,0 +1,13 @@
+function sendPersonalizedEmail() {
+ const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Sheet1');
+ const rows = sheet.getDataRange().getValues(); 
+ const data = rows.slice(1);
+ Logger.log(data);
+ data.forEach(function(row) {
+ const recipient = row[0];
+ const name = row[1];
+ const subject = 'Hello, ' + name + '!';
+ const body = 'Dear ' + name + ',\n\nThis is a personalized message just for you!';
+ MailApp.sendEmail(recipient, subject, body);
+ });
+}

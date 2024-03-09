@@ -1,0 +1,18 @@
+function applyLabelToMatchingEmails() {
+  // Define the search criteria
+  const searchCriteria = 'from:courses@gmail.com';
+  
+  // Create or retrieve the label
+  let label = GmailApp.getUserLabelByName('Example Label');
+  if (!label) {
+    label = GmailApp.createLabel('Example Label');
+  }
+  
+  // Search for emails matching the criteria
+  const threads = GmailApp.search(searchCriteria);
+  
+  // Apply the label to each thread that matches the criteria
+  threads.forEach(function(thread) {
+    thread.addLabel(label);
+  });
+}

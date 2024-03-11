@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+</head>
+<body>
+  <h1>Welcome to My Custom Dialog</h1>
+  <p>This is a sample custom dialog created using Google Apps Script.</p>
+</body>
+</html>

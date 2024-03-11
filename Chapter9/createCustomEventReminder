@@ -1,0 +1,14 @@
+function createCustomEventReminder() {
+ const calendarId = 'primary'; // Use 'primary' for the user's default calendar
+ const events = CalendarApp.getCalendarById(calendarId).getEventsForDay(new Date());
+ for (let i = 0; i < events.length; i++) {
+ const event = events[i];
+ const startTime = event.getStartTime();
+ const endTime = event.getEndTime();
+ const now = new Date();
+ const timeToEventStart = startTime.getTime() - now.getTime();
+ // Send a notification 1 hour before the event starts
+ if (timeToEventStart <= 3600000 && timeToEventStart > 0) {
+ const message = 'Reminder: ' + event.getTitle() + ' starts in less than an hour.';
+ MailApp.sendEmail("your-email@example.com", "Event Reminder", message); // Replace with actual email address
+ } }}

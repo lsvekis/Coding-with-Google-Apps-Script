@@ -1,0 +1,10 @@
+function onOpen() {
+ const ui = SpreadsheetApp.getUi();
+ ui.createMenu('Custom Menu')
+ .addItem('Run Report', 'generateReport')
+ .addToUi();
+}
+function generateReport() {
+ // Your code to generate the report
+ SpreadsheetApp.getUi().alert('Report generated successfully!');
+}

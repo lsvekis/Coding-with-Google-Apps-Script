@@ -1,0 +1,35 @@
+function getTaskListId(taskListTitle) {
+  // Get the list of all task lists
+  const taskLists = Tasks.Tasklists.list();
+    // Search for the task list by title
+  if (taskLists.items) {
+    for (let i = 0; i < taskLists.items.length; i++) {
+      const taskList = taskLists.items[i];
+      if (taskList.title === taskListTitle) {
+        Logger.log(taskList.title + " - " + taskList.id);
+        return taskList.id;
+      }
+    }
+  }
+  Logger.log('Task list not found.');
+  return null; // Return null if not found
+}
+
+function addTaskToTaskList(taskListId, taskTitle) {
+  // Define the new task
+  const task = {
+    title: taskTitle,
+    notes: 'This is a note.',
+    due: (new Date(new Date().getTime() + 24*60*60*1000)).toISOString() // Due date, 1 day from now
+  };
+  // Add the task to the specified task list
+  const addedTask = Tasks.Tasks.insert(task, taskListId);
+  Logger.log('Task added: ' + addedTask.title);
+}
+function createAndAddTask() {
+  const taskListTitle = 'Homework Assignments'; // The title of the task list you're interested in
+  const taskListId = getTaskListId(taskListTitle); // Find the ID of the task list
+  if (taskListId) {
+    addTaskToTaskList(taskListId, 'Math Homework'); // Add a task to this task list
+  }
+}

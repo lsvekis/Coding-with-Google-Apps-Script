@@ -8,3 +8,12 @@
   <p>This is a sample custom dialog created using Google Apps Script.</p>
 </body>
 </html>
+
+
+function showDialog() {
+ const html = HtmlService.createHtmlOutputFromFile('Page')
+ .setWidth(400)
+ .setHeight(300);
+ SpreadsheetApp.getUi() // Or DocumentApp or FormApp.
+ .showModalDialog(html, 'My custom dialog');
+}

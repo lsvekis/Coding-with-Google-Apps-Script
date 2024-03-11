@@ -1,0 +1,12 @@
+function createTaskList() {
+  // Define the new task list
+  let taskList = {
+    title: 'Homework Assignments'
+  };
+
+  // Insert the task list using the Tasks API
+  taskList = Tasks.Tasklists.insert(taskList);
+
+  // Log the title of the created task list
+  Logger.log('Task list created: ' + taskList.title);
+}

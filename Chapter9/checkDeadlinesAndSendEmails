@@ -1,0 +1,16 @@
+function checkDeadlinesAndSendEmails() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getRange("A2:B10"); // Adjust range to your needs
+ const values = range.getValues();
+ for (let i = 0; i < values.length; i++) {
+ const row = values[i];
+ const task = row[0];
+ const dueDate = row[1];
+ const today = new Date();
+ if (dueDate < today) {
+ const message = 'The task "' + task + '" is past due.';
+ const subject = 'Task Reminder: ' + task;
+ MailApp.sendEmail("your-email@example.com", subject, message); // Replace with actual email address
+ }
+ }
+}

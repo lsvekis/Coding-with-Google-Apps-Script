@@ -1,0 +1,10 @@
+function formatCells() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getRange("A1:A10");
+ const values = range.getValues();
+ for (let i = 0; i < values.length; i++) {
+ if (values[i][0] > 5) { // If value in cell is greater than 5
+ sheet.getRange(i + 1, 1).setBackground('yellow'); // Change background color to yellow
+ }
+ }
+}

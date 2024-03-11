@@ -1,0 +1,12 @@
+function sendEmailNotifications() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getRange("A1:B10");
+ const rows = range.getValues();
+ for (let i = 0; i < rows.length; i++) {
+ const status = rows[i][1]; // Assuming status is in the second column
+ const email = rows[i][0]; // Assuming email address is in the first column
+ if (status === "Completed") {
+ MailApp.sendEmail(email, "Task Status", "Your task has been marked as completed.");
+ }
+ }
+}

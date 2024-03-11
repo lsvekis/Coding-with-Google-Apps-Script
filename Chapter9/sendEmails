@@ -1,0 +1,15 @@
+function sendEmails() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getDataRange(); // Get data from all filled cells
+ const values = range.getValues(); // 2D array of values
+ // Skip the header row and start from row 2
+ for (let i = 1; i < values.length; i++) {
+ const row = values[i];
+ const email = row[0]; // Assuming email addresses are in the first column
+ const name = row[1]; // Assuming names are in the second column
+ const message = "Dear " + name + ",\n\nYour custom message here.";
+ const subject = "Automated Email from Google Apps Script";
+ // Send the email
+ MailApp.sendEmail(EMAIL, subject, message);
+ }
+}

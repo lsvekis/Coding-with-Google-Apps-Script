@@ -1,0 +1,15 @@
+function createCalendarEvents() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getDataRange();
+ const values = range.getValues();
+ const calendar = CalendarApp.getDefaultCalendar();
+ for (let i = 1; i < values.length; i++) {
+ const row = values[i];
+ const eventName = row[0]; // Assuming the event name is in the first column
+ const startDate = new Date(row[1]); // Assuming the start date is in the second column
+ const endDate = new Date(row[2]); // Assuming the end date is in the third column
+ const options = {description: row[3], location: row[4]}; // Additional details
+ // Create the calendar event
+ calendar.createEvent(eventName, startDate, endDate, options);
+ }
+}

@@ -1,0 +1,13 @@
+function getPosts() {
+  var url = 'https://jsonplaceholder.typicode.com/posts';
+  var response = UrlFetchApp.fetch(url); // Make the GET request
+  var json = response.getContentText(); // Get the response content as text
+  var data = JSON.parse(json); // Parse the JSON text into an object
+  
+  Logger.log(data); // Log the data to the Google Apps Script log
+  
+  // Optional: Process the data as needed
+  data.forEach(function(post) {
+    Logger.log(post.title); // Log each post's title
+  });
+}

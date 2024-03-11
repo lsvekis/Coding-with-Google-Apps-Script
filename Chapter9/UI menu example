@@ -1,0 +1,19 @@
+function onOpen() {
+ const ui = SpreadsheetApp.getUi();
+ ui.createMenu('My Custom Menu')
+ .addItem('Perform Action', 'performAction')
+ .addSeparator()
+ .addSubMenu(ui.createMenu('More Actions')
+ .addItem('Action 1', 'actionOne')
+ .addItem('Action 2', 'actionTwo'))
+ .addToUi();
+}
+function performAction() {
+ SpreadsheetApp.getActiveSheet().getRange('A1').setValue('Action performed!');
+}
+function actionOne() {
+ // Code for Action 1
+}
+function actionTwo() {
+ // Code for Action 2
+}

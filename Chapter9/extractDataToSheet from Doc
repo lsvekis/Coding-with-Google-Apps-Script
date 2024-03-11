@@ -1,0 +1,12 @@
+function extractDataToSheet() {
+ const doc = DocumentApp.openById(DOCID);
+ const body = doc.getBody();
+ const text = body.getText();
+ const sheet = SpreadsheetApp.openById(SHEETID).getSheets()[0];
+ // Example: Extracting lines of text into separate rows in a sheet
+ const lines = text.split('\n');
+ for (let i = 0; i < lines.length; i++) {
+ const cell = sheet.getRange(i + 1, 1); // Assumes data starts in the first column
+ cell.setValue(lines[i]);
+ }
+}

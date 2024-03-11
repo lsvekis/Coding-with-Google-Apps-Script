@@ -1,0 +1,4 @@
+function createEvent() {
+ const calendar = CalendarApp.getDefaultCalendar();
+ calendar.createEvent('Apps Script Event', new Date(), new Date());
+}

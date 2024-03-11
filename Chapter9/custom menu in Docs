@@ -1,0 +1,22 @@
+function onOpen() {
+ const ui = DocumentApp.getUi();
+ ui.createMenu('My Custom Menu')
+ .addItem('Highlight Text', 'highlightText')
+ .addSeparator()
+ .addSubMenu(ui.createMenu('Insert')
+ .addItem('Insert Date', 'insertDate')
+ .addItem('Insert Signature', 'insertSignature'))
+ .addToUi();
+}
+function highlightText() {
+ const doc = DocumentApp.getActiveDocument();
+ const body = doc.getBody();
+ const text = body.editAsText();
+ text.setBold(true);
+}
+function insertDate() {
+ // Code to insert the current date
+}
+function insertSignature() {
+ // Code to insert a predefined signature
+}

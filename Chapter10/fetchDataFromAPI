@@ -1,0 +1,6 @@
+function fetchDataFromAPI() {
+ const response = UrlFetchApp.fetch('https://api.example.com/data');
+ const data = JSON.parse(response.getContentText());
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+}

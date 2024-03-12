@@ -1,0 +1,36 @@
+function sendMonthlyFinancialReport() {
+ const reportContent = generateFinancialReportContent(); // Assume this generates the report text or HTML
+ const today = new Date();
+ const subject = 'Monthly Financial Report - ' + (today.getMonth() + 1) + '/' + today.getFullYear();
+ const recipients = EMAIL; // Add your email or stakeholders' emails
+ MailApp.sendEmail(recipients, subject, '', {htmlBody: reportContent});
+}
+function generateFinancialReportContent() {
+  // Sample data for the financial report
+  const expenses = {
+    'Groceries': 500,
+    'Utilities': 200,
+    'Transportation': 150,
+    'Entertainment': 100
+  };
+  const income = 1200;
+  // Calculate total expenses
+  let totalExpenses = 0;
+  for (const category in expenses) {
+    totalExpenses += expenses[category];
+  }
+  // Calculate net income
+  const netIncome = income - totalExpenses;
+  // Construct the report content
+  let reportContent = '<h1>Financial Report</h1>';
+  reportContent += '<p><strong>Income:</strong> $' + income.toFixed(2) + '</p>';
+  reportContent += '<p><strong>Expenses:</strong></p>';
+  reportContent += '<ul>';
+  for (const category in expenses) {
+    reportContent += '<li>' + category + ': $' + expenses[category].toFixed(2) + '</li>';
+  }
+  reportContent += '</ul>';
+  reportContent += '<p><strong>Total Expenses:</strong> $' + totalExpenses.toFixed(2) + '</p>';
+  reportContent += '<p><strong>Net Income:</strong> $' + netIncome.toFixed(2) + '</p>';
+  return reportContent;
+}

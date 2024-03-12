@@ -1,0 +1,10 @@
+function writeSheetData() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const data = [
+ ['Name', 'Email', 'Score'],
+ ['John Doe', 'john@example.com', 88],
+ ['Jane Smith', 'jane@example.com', 92]
+ ];
+ const range = sheet.getRange(1, 1, data.length, data[0].length);
+ range.setValues(data);
+}

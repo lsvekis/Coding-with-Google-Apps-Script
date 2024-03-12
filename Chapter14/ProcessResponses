@@ -1,0 +1,22 @@
+function testProcessResponses() {
+  const responses = [
+    {
+      name: 'John Doe',
+      email: 'john.doe@example.com',
+      feedback: 'Great presentation! Really enjoyed it.'
+    },
+    {
+      name: 'Jane Smith',
+      email: 'jane.smith@example.com',
+      feedback: 'The training was very informative. Thank you!'
+    },
+    // Add more response objects as needed
+  ];
+  // Call processResponses with sample data
+    responses.forEach(({ name, email, feedback }, index) => {
+      const message = `Dear ${name}, thank you for your feedback!`;
+      MailApp.sendEmail(EMAIL, 'Feedback Received', message);
+      Logger.log(`Feedback from ${name} processed.`);
+    });
+
+}

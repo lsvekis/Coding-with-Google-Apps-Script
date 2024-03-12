@@ -1,0 +1,25 @@
+function assignTasks() {
+ const projectSheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Project Tasks');
+ const lastRow = projectSheet.getLastRow();
+ const data = projectSheet.getRange(2, 1, lastRow - 1, 3).getValues(); // Assuming columns A-C contain task data
+ data.forEach(function(row) {
+ const task = {
+ title: row[0],
+ assignee: row[1],
+ status: row[2]
+ };
+ // Code to assign task to assignee (e.g., send email notification)
+ // Code to update task status (e.g., mark task as assigned)
+ });
+}
+function sendEmailNotification() {
+ const recipient = 'team_member@example.com';
+ const subject = 'Task Assigned: Review Proposal';
+ const body = 'Dear Team Member,\n\nA new task has been assigned to you. Please review the proposal and provide feedback by the end of the day.\n\nRegards,\nProject Manager';
+ MailApp.sendEmail(recipient, subject, body);
+}
+function generateProjectReport() {
+ const projectData = fetchDataFromProjectManagementTool(); // Function to fetch project data
+ const report = createReport(projectData); // Function to create report
+ // Code to share report with stakeholders (e.g., email report as PDF attachment)
+}

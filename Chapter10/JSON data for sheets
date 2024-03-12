@@ -1,0 +1,18 @@
+function fetchDataFromAPI3() {
+  // Assuming SHEETID is defined elsewhere as the actual ID of your sheet
+  const sheetName = 'data'; // The name of your sheet tab
+  // Predefined data
+  const predefinedData = [
+    ["1", "Leanne Graham", "Bret", "Sincere@april.biz"],
+    ["2", "Ervin Howell", "Antonette", "Shanna@melissa.tv"]
+  ];
+  // Headers
+  const headers = ['ID', 'Name', 'Username', 'Email'];
+ // Reference the sheet
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName(sheetName);
+  sheet.clear(); // Clear existing contents
+  // Set headers
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  // Set data (accounting for headers, start from row 2)
+  sheet.getRange(2, 1, predefinedData.length, predefinedData[0].length).setValues(predefinedData);
+}

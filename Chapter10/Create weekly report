@@ -1,0 +1,22 @@
+function createWeeklyReport() {
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data');
+  const data = sheet.getDataRange().getValues();
+  
+  // Assuming generateDocReport is defined elsewhere in your script
+  const reportUrl = generateDocReport(data);
+  
+  Logger.log(`Report generated: ${reportUrl}`);
+}
+
+function generateDocReport(data) {
+  const doc = DocumentApp.create('Weekly Report');
+  const body = doc.getBody();
+  body.appendParagraph('Weekly Report').setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  
+  data.forEach((row, index) => {
+    if (index === 0) return; // Skip headers
+    body.appendParagraph(`Data Point: ${row.join(', ')}`);
+  });
+  
+  return doc.getUrl();
+}

@@ -1,0 +1,24 @@
+function customizedSheetDataToJson() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getDataRange();
+ const values = range.getValues();
+ const jsonArray = [];
+ values.slice(1).forEach(function(row) {
+ const obj = {};
+ row.forEach(function(cell, index) {
+ const header = values[0][index];
+ if (cell) { // Exclude empty cells
+ obj[header] = cell;
+ }
+ });
+ jsonArray.push(obj);
+ });
+ // Custom formatting (e.g., date formatting)
+ jsonArray.forEach(function(item) {
+ if (item.date) {
+ item.date = Utilities.formatDate(new Date(item.date), Session.getScriptTimeZone(), "yyyy-MM-dd");
+ }
+ });
+ const jsonString = JSON.stringify(jsonArray, null, 2); // Pretty print JSON
+ Logger.log(jsonString);
+}

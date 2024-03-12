@@ -1,0 +1,18 @@
+function sheetDataToJson() {
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data');
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  Logger.log(values);
+  const jsonArray = [];
+  // Assuming the first row contains headers
+  const headers = values[0];
+  values.slice(1).forEach(function (row) {
+    const obj = {};
+    row.forEach(function (cell, index) {
+      obj[headers[index]] = cell;
+    });
+    jsonArray.push(obj);
+  });
+  const jsonString = JSON.stringify(jsonArray);
+  Logger.log(jsonString); // Log the JSON string
+}

@@ -1,0 +1,35 @@
+function summarizeData() {
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data');
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  const summary = {}; // Object to hold data summary
+  // Loop through rows of data and accumulate information
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const category = row[0]; // Assuming the category is in the first column
+    const amount = row[1]; // Assuming the amount is in the second column
+    if (!isNaN(amount)) { // Ensure amount is a number
+      if (summary[category]) {
+        summary[category] += amount;
+      } else {
+        summary[category] = amount;
+      }
+    }
+  }
+  // Check if the "Summary" sheet exists, update it if it does, or create a new one if it doesn't
+  let summarySheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Summary');
+  if (summarySheet !== null) {
+    // If "Summary" sheet exists, clear it
+    summarySheet.clear();
+  } else {
+    // If "Summary" sheet doesn't exist, create it
+    summarySheet = SpreadsheetApp.openById(SHEETID).insertSheet('Summary');
+  }
+  // Output the summary to the "Summary" sheet
+  let rowIndex = 1; // Fixed the scope of rowIndex
+  for (let key in summary) {
+    summarySheet.getRange(rowIndex, 1).setValue(key);
+    summarySheet.getRange(rowIndex, 2).setValue(summary[key]);
+    rowIndex++;
+  }
+}

@@ -1,0 +1,30 @@
+function fetchDataFromAPI2() {
+  try {
+    // Fetch data from the API
+    const response = UrlFetchApp.fetch('https://jsonplaceholder.typicode.com/users');
+    if (response.getResponseCode() !== 200) {
+      throw new Error('Failed to fetch data: API returned status code ' + response.getResponseCode());
+    }
+    const data = JSON.parse(response.getContentText());
+    // Check if data is an array and has at least one element
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Invalid or empty data received from the API');
+    }
+    // Assuming all objects have the same structure, extract headers (keys) from the first object
+    const headers = Object.keys(data[0]);
+    const numRows = data.length + 1; // Adding one row for headers
+    const numCols = headers.length;
+    // Transform data into a 2D array
+    const rows = data.map(obj => headers.map(header => obj[header] || ''));
+    rows.unshift(headers); // Add headers at the beginning
+    // Reference the specific sheet by ID and name
+    const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data');
+    // Clear existing content before setting new values
+    sheet.clear();
+    // Set values in the sheet dynamically based on data size
+    sheet.getRange(1, 1, numRows, numCols).setValues(rows);
+  } catch (error) {
+    // Log the error or use a more sophisticated error handling approach
+    Logger.log('Error fetching or processing data: ' + error.toString());
+  }
+}

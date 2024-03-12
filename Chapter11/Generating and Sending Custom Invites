@@ -1,0 +1,24 @@
+function sendInvitations() {
+ const recipients = [
+ { name: 'John Doe', email: 'john@example.com', eventName: 'Holiday Party', eventDate: 'December 25, 2023', eventLocation: '123 Main St', rsvpDeadline: 'December 15, 2023' },
+ { name: 'Jane Smith', email: 'jane@example.com', eventName: 'Product Launch', eventDate: 'January 10, 2024', eventLocation: '456 Elm St', rsvpDeadline: 'January 5, 2024' }
+ ];
+ const templateDocId = 'your_template_document_id'; // Replace with the ID of your invitation template document
+ recipients.forEach(function(recipient) {
+ const templateDoc = DocumentApp.openById(templateDocId);
+ const templateContent = templateDoc.getBody().getText();
+ const customizedContent = templateContent
+ .replace('{{RecipientName}}', recipient.name)
+ .replace('{{EventName}}', recipient.eventName)
+ .replace('{{EventDate}}', recipient.eventDate)
+ .replace('{{EventLocation}}', recipient.eventLocation)
+ .replace('{{RSVPDeadline}}', recipient.rsvpDeadline);
+ // Send email with customized invitation
+ MailApp.sendEmail({
+ to: recipient.email,
+ subject: 'You are invited!',
+ body: customizedContent,
+ name: 'Your Name'
+ });
+ });
+}

@@ -1,0 +1,4 @@
+function trackUsage(functionName, executionTime, user) {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UsageLogs');
+ sheet.appendRow([new Date(), functionName, executionTime, user]);
+}

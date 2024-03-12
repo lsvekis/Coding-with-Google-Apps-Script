@@ -1,0 +1,11 @@
+function readSheetData() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getDataRange(); // Get all non-empty cells
+ const values = range.getValues(); // Returns a 2D array of values
+ // Iterate through rows and columns
+ for (let i = 0; i < values.length; i++) {
+ for (let j = 0; j < values[i].length; j++) {
+ Logger.log(values[i][j]);
+ }
+ }
+}

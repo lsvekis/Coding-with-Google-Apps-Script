@@ -1,0 +1,14 @@
+function assignTasks() {
+ const projectSheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Project Tasks');
+ const lastRow = projectSheet.getLastRow();
+ const data = projectSheet.getRange(2, 1, lastRow - 1, 3).getValues(); // Assuming columns A-C contain task data
+ data.forEach(function(row) {
+ const task = {
+ title: row[0],
+ assignee: row[1],
+ status: row[2]
+ };
+ // Code to assign task to assignee (e.g., send email notification)
+ // Code to update task status (e.g., mark task as assigned)
+ });
+}

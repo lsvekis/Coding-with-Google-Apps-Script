@@ -1,0 +1,77 @@
+function syncBookingsToCalendar() {
+ const bookings = getPendingBookings(); // Assume this fetches bookings from the sheet
+ bookings.forEach(function(booking) {
+ if (!checkCalendarConflicts(booking)) {
+ createCalendarEvent(booking); // Create event if no conflict
+ updateBookingStatus(booking, 'Confirmed'); // Update status in the sheet
+ } else {
+ sendConflictNotification(booking); // Notify user of conflict
+ }
+ });
+}
+function checkCalendarConflicts(booking) {
+  var calendar = CalendarApp.getDefaultCalendar();
+  var startTime = new Date(booking.bookingDate + ' ' + booking.startTime);
+  var endTime = new Date(booking.bookingDate + ' ' + booking.endTime);
+  var events = calendar.getEvents(startTime, endTime);
+  return events.length > 0; // If there are events, return true (conflict exists)
+}
+function createCalendarEvent(booking) {
+  var calendar = CalendarApp.getDefaultCalendar();
+  var title = 'Booking: ' + booking.customerName;
+  var startTime = new Date(booking.bookingDate + ' ' + booking.startTime);
+  var endTime = new Date(booking.bookingDate + ' ' + booking.endTime);
+  var options = {description: 'Booking ID: ' + booking.bookingID};
+  
+  calendar.createEvent(title, startTime, endTime, options);
+}
+function updateBookingStatus(booking, status) {
+  var sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Bookings');
+  var dataRange = sheet.getDataRange();
+  var data = dataRange.getValues();
+  
+  // Find the booking by ID and update its status
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] == booking.bookingID) { // Assuming BookingID is in the first column
+      sheet.getRange(i + 1, 7).setValue(status); // Update status in the 7th column
+      break;
+    }
+  }
+}
+function sendConflictNotification(booking) {
+  var emailSubject = 'Booking Conflict Notification';
+  var emailBody = 'Dear ' + booking.customerName + ',\n\n' +
+                  'We regret to inform you that your booking for ' + booking.bookingDate +
+                  ' from ' + booking.startTime + ' to ' + booking.endTime +
+                  ' cannot be confirmed due to a scheduling conflict.\n\n' +
+                  'Please contact us to reschedule your booking.\n\n' +
+                  'Best regards,\n' +
+                  'Your Company Name';
+                  
+  MailApp.sendEmail(booking.email, emailSubject, emailBody);
+}
+
+function getPendingBookings() {
+  var sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Bookings');
+  var dataRange = sheet.getDataRange();
+  var data = dataRange.getValues();
+  var pendingBookings = [];
+  // Skip the header row with an index of 0 by starting with 1
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var status = row[6]; // Assuming status is in the 7th column
+    if (status === 'Pending') {
+      var booking = {
+        bookingID: row[0],
+        customerName: row[1],
+        email: row[2],
+        bookingDate: row[3],
+        startTime: row[4],
+        endTime: row[5],
+        status: row[6]
+      };
+      pendingBookings.push(booking);
+    }
+  }
+  return pendingBookings;
+}

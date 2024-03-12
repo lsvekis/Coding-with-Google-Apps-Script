@@ -1,0 +1,21 @@
+function createCalendarEvent() {
+ const calendar = CalendarApp.getDefaultCalendar();
+ const event = calendar.createEvent('Meeting with Client', new Date('2023-03-15T09:00:00'), new Date('2023-03-15T10:00:00'));
+ Logger.log('Event created: ' + event.getTitle());
+}
+
+function retrieveCalendarEvents() {
+ const calendar = CalendarApp.getDefaultCalendar();
+ const events = calendar.getEventsForDay(new Date('2023-03-15'));
+ events.forEach(function(event) {
+ Logger.log('Event: ' + event.getTitle() + ', Start Time: ' + event.getStartTime());
+ });
+}
+
+function sendEventReminderEmail() {
+ const event = CalendarApp.getDefaultCalendar().getEventsForDay(new Date())[0]; // Get first event of the day
+ const recipient = Session.getActiveUser().getEmail(); // Get current user's email
+ const subject = 'Reminder: ' + event.getTitle();
+ const body = 'This is a reminder for your upcoming event: ' + event.getTitle() + '\n\nLocation: ' + event.getLocation() + '\nStart Time: ' + event.getStartTime();
+ MailApp.sendEmail(recipient, subject, body);
+}

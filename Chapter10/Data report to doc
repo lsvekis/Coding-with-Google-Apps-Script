@@ -1,0 +1,4 @@
+To match the requirements of the generateReport function which generates a document with a data report from a spreadsheet, we'll design a simple data table structure. This structure assumes that your data is organized in a typical tabular format with headers in the first row and subsequent rows containing the data.
+
+Example Spreadsheet Data
+Let's assume your spreadsheet data looks like this:

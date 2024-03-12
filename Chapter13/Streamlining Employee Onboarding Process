@@ -1,0 +1,42 @@
+function processNewEmployeeForm() {
+ const employeeDetails = getNewEmployeeDetails(); // Fetch details from form response
+ createOnboardingDocuments(employeeDetails);
+ createEmployeeAccount(employeeDetails);
+ sendWelcomeEmail(employeeDetails);
+}
+function getNewEmployeeDetails() {
+  var sheet = SpreadsheetApp.openById(SHEETID).getSheetByName("data");
+  var dataRange = sheet.getDataRange();
+  var data = dataRange.getValues();
+  
+  var lastRow = data[data.length - 1];
+  var employeeDetails = {
+    formID: lastRow[0],
+    name: lastRow[1],
+    email: lastRow[2],
+    position: lastRow[3],
+    startDate: lastRow[4],
+    department: lastRow[5]
+  };
+
+  return employeeDetails;
+}
+function createOnboardingDocuments(employeeDetails) {
+  // This is a placeholder for where you would create documents.
+  // For example, copying a template file and customizing it with the employee's details.
+  Logger.log("Creating onboarding documents for " + employeeDetails.name);
+}
+function createEmployeeAccount(employeeDetails) {
+  // This is a placeholder for the employee account creation logic.
+  Logger.log("Creating an account for " + employeeDetails.name);
+}
+function sendWelcomeEmail(employeeDetails) {
+  var subject = "Welcome to the Team, " + employeeDetails.name + "!";
+  var body = "Dear " + employeeDetails.name + ",\n\n" +
+             "Welcome to the " + employeeDetails.department + " department as our new " + employeeDetails.position + ". " +
+             "Your start date is " + employeeDetails.startDate + ". We are excited to have you onboard and look forward to your contributions.\n\n" +
+             "Best,\nThe Team";
+  
+  MailApp.sendEmail(EMAIL, subject, body);
+  Logger.log("Sent welcome email to " + employeeDetails.email);
+}

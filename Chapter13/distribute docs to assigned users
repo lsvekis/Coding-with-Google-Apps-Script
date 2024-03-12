@@ -1,0 +1,44 @@
+// Function to fetch student list
+function getStudentList() {
+    // Mock student list data
+    return [
+        { name: 'John Doe', email: 'john.doe@example.com' },
+        { name: 'Jane Smith', email: 'jane.smith@example.com' },
+        { name: 'Alice Johnson', email: 'alice.johnson@example.com' },
+        // Add more students as needed
+    ];
+}
+
+// Function to fetch research topics
+function getResearchTopics() {
+    // Mock research topics data
+    return [
+        'Machine Learning',
+        'Artificial Intelligence',
+        'Data Science',
+        'Blockchain',
+        'Internet of Things',
+        // Add more topics as needed
+    ];
+}
+
+// Function to distribute assignments
+function distributeAssignments() {
+    const studentList = getStudentList(); // Fetch student list
+    const topics = getResearchTopics(); // Fetch research topics
+    const assignmentsFolderId = FOLDERID; // ID of the Drive folder where assignments are stored
+    
+    studentList.forEach(function(student, index) {
+        const doc = DocumentApp.create(student.name + ' Research Assignment');
+        const body = doc.getBody();
+        const topic = topics[index % topics.length]; // Rotate topics for each student
+        body.appendParagraph('Research Topic: ' + topic);
+        body.appendParagraph('Please submit your paper by the due date.');
+        
+        // Move document to the assignments folder
+        DriveApp.getFileById(doc.getId()).moveTo(DriveApp.getFolderById(assignmentsFolderId));
+        
+        // Send the assignment link to the student
+        MailApp.sendEmail(student.email, 'Your Research Assignment', 'Please find your assignment here: ' + doc.getUrl());
+    });
+}

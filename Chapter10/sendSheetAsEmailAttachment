@@ -1,0 +1,11 @@
+function sendSheetAsEmailAttachment() {
+ const file = DriveApp.getFileById(SHEETID);
+ const blob = file.getAs(MimeType.PDF); // Change as needed, e.g., MimeType.CSV
+ blob.setName(file.getName() + '.pdf'); // Change extension as per format
+ MailApp.sendEmail({
+ to: EMAIL,
+ subject: "Data Report",
+ body: "Find the attached data report.",
+ attachments: [blob]
+ });
+}

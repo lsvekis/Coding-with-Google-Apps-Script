@@ -1,0 +1,24 @@
+function filterData() {
+  const spreadsheet = SpreadsheetApp.openById(SHEETID);
+  const sheet = spreadsheet.getSheetByName('data');
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  
+  const filteredData = values.filter(function(row) {
+    return row[2] >= 90; // Assuming scores are in the third column
+  });
+  
+  // Check if the "Filtered Scores" sheet exists, if not, create it
+  let filteredSheet = spreadsheet.getSheetByName("Filtered Scores");
+  if (!filteredSheet) {
+    filteredSheet = spreadsheet.insertSheet("Filtered Scores");
+  } else {
+    // Clear the existing contents before writing new data
+    filteredSheet.clear();
+  }
+  
+  // Write the filtered data to the "Filtered Scores" sheet
+  if (filteredData.length > 0) {
+    filteredSheet.getRange(1, 1, filteredData.length, filteredData[0].length).setValues(filteredData);
+  }
+}

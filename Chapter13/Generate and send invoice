@@ -1,0 +1,50 @@
+function getLatestOrder() {
+    // Access the spreadsheet by its ID and specify the sheet
+    const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data');
+    // Get the last row with data
+    const lastRow = sheet.getLastRow();
+    // Retrieve order details from the last row
+    const orderData = sheet.getRange(lastRow, 1, 1, sheet.getLastColumn()).getValues()[0];
+    // Assuming the data columns match the order in the static example above
+    const latestOrder = {
+        orderId: orderData[0],
+        customerName: orderData[1],
+        customerEmail: orderData[2],
+        orderDate: orderData[3],
+        orderTotal: orderData[4],
+        productDetails: orderData[5]
+    };
+
+    return latestOrder;
+}
+function generateAndSendInvoice() {
+ const sheetData = getLatestOrder(); // Assume this function fetches the latest order details
+ const invoiceTemplate = DriveApp.getFileById(DOCID); // Template document ID
+ const docCopy = invoiceTemplate.makeCopy('Invoice for ' + sheetData.customerName);
+ const doc = DocumentApp.openById(docCopy.getId());
+ const body = doc.getBody();
+ // Replace placeholders in the template with actual order data
+ body.replaceText('{{CustomerName}}', sheetData.customerName);
+ body.replaceText('{{OrderDate}}', sheetData.orderDate);
+ // Add more replacements as needed
+ doc.saveAndClose();
+ // Convert to PDF and email to customer
+ sendInvoiceAsPdf(doc.getId(), sheetData.customerEmail);
+}
+function sendInvoiceAsPdf(documentId, customerEmail) {
+    // Get the document by ID
+    const doc = DriveApp.getFileById(documentId);
+    // Convert the document to a PDF
+    const pdf = doc.getAs(MimeType.PDF);
+    // Define the subject of the email
+    const subject = 'Your Invoice from Our Company';
+    // Define the body of the email
+    const body = 'Dear Customer,\n\nPlease find attached your invoice.\n\nThank you for your business!';
+    // Define email options, including attachments
+    const emailOptions = {
+        attachments: [pdf],
+        mimeType: MimeType.PDF
+    };
+    // Send the email with the PDF attachment
+    MailApp.sendEmail(EMAIL, subject, body, emailOptions);
+}

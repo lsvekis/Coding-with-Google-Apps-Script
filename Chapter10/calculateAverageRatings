@@ -1,0 +1,12 @@
+function calculateAverageRatings() {
+ const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('Form Responses 1');
+ const responses = sheet.getDataRange().getValues();
+ const headers = responses.shift(); // Assuming first row contains headers
+ const ratingColumnIndex = headers.indexOf('Rating'); // Adjust based on your actual question title
+let totalRating = 0;
+ responses.forEach(function(row) {
+ totalRating += row[ratingColumnIndex];
+ });
+ const averageRating = totalRating / responses.length;
+ Logger.log('Average Rating: ' + averageRating);
+}

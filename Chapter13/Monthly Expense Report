@@ -1,0 +1,30 @@
+function testGenerateMonthlyExpenseReport() {
+  // Define the month and year for testing
+  const month = 3; // March
+  const year = 2024;
+  
+  // Call the generateMonthlyExpenseReport function
+  generateMonthlyExpenseReport(month, year);
+}
+
+function generateMonthlyExpenseReport(month, year) {
+  const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName("data");
+  const dataRange = sheet.getDataRange();
+  const data = dataRange.getValues();
+  const report = {};
+  
+  // Start iterating from the second row to skip the header
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const date = new Date(row[0]); // Assumes date is in the first column
+    const category = row[1]; // Assumes category is in the second column
+    const amount = parseFloat(row[2]); // Assumes amount is in the third column
+
+    // Check if date, category, and amount are not empty and valid
+    if (date && !isNaN(amount) && category && date.getMonth() + 1 === month && date.getFullYear() === year) {
+      report[category] = (report[category] || 0) + amount;
+    }
+  }
+  // Log the report or write it back to another sheet
+  Logger.log(report);
+}

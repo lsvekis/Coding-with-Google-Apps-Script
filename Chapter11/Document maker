@@ -1,0 +1,24 @@
+function createTimeDrivenTrigger() {
+ ScriptApp.newTrigger('createDocument')
+ .timeBased()
+ .atHour(9)
+ .everyDays(1)
+ .create();
+}
+function createDocument() {
+ const doc = DocumentApp.create('Daily Report ' + new Date().toDateString());
+ const body = doc.getBody();
+ // Add content to the document
+ body.appendParagraph('Daily Report');
+ body.appendParagraph('Date: ' + new Date().toDateString());
+ body.appendParagraph('Generated automatically using Google Apps Script.');
+}
+// Function to create a meeting agenda document based on calendar event
+function createMeetingAgenda(event) {
+ const doc = DocumentApp.create('Meeting Agenda: ' + event.getTitle());
+ const body = doc.getBody();
+ // Add content to the document
+ body.appendParagraph('Meeting Agenda: ' + event.getTitle());
+ body.appendParagraph('Date: ' + event.getStartTime().toDateString());
+ body.appendParagraph('Location: ' + event.getLocation());
+}

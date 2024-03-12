@@ -1,0 +1,17 @@
+function fetchAndParseRSSFeed() {
+ const url = 'https://basescripts.com/feed'; // Replace with the URL of the RSS feed
+ const xml = UrlFetchApp.fetch(url).getContentText();
+ const document = XmlService.parse(xml);
+ const entries = document.getRootElement().getChild('channel').getChildren('item');
+ const data = [];
+ entries.forEach(function(entry) {
+ const postTitle = entry.getChild('title').getText();
+ const postLink = entry.getChild('link').getText();
+ const postDescription = entry.getChild('description').getText();
+ // Add more fields as needed
+ data.push([postTitle, postLink, postDescription]);
+ });
+ // Do something with the data, like writing it to a Google Sheet
+ const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName('data');
+ sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+}

@@ -1,0 +1,15 @@
+function generateResponseSummary() {
+ const sheet =  SpreadsheetApp.openById(SHEETID).getSheetByName('Form Responses 1');
+ const responses = sheet.getDataRange().getValues();
+ const summary = {}; // Object to hold summary counts
+ responses.forEach(function(row, index) {
+ if (index === 0) return; // Skip header row
+ row.forEach(function(response, columnIndex) {
+ const question = responses[0][columnIndex];
+ summary[question] = summary[question] || {};
+ summary[question][response] = (summary[question][response] || 0) + 1;
+ });
+ });
+ // Log the summary or write it back to another sheet
+ Logger.log(summary);
+}

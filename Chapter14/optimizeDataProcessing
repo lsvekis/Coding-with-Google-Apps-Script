@@ -1,0 +1,13 @@
+function optimizeDataProcessing() {
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ const range = sheet.getRange('A1:Z'); // Adjust range as needed
+ const values = range.getValues();
+ // Process data in batches instead of cell by cell
+ const processedValues = values.map(row => {
+ // Process each row; for example, summing values
+ const sum = row.reduce((total, cell) => total + (typeof cell === 'number' ? cell : 0), 0);
+ return [...row, sum]; // Append sum to row
+ });
+ // Write back all processed data at once
+ sheet.getRange(1, 1, processedValues.length, processedValues[0].length).setValues(processedValues);
+}

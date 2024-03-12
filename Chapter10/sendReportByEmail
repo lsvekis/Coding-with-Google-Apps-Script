@@ -1,0 +1,5 @@
+function sendReportByEmail(reportUrl, recipients) {
+ const subject = 'Weekly Report';
+ const body = `Please find this week's report at the following link: ${reportUrl}`;
+ MailApp.sendEmail(recipients, subject, body);
+}

@@ -1,0 +1,19 @@
+function sendSheetDataAsJson() {
+ const sheetData = SpreadsheetApp.openById(SHEETID).getSheetByName('data').getDataRange().getValues();
+ const jsonData = [];
+ // Assuming the first row contains headers
+ const headers = sheetData.shift(); // Removes the first row and returns it
+ sheetData.forEach(function(row) {
+ const obj = {};
+ headers.forEach(function(header, index) {
+ obj[header] = row[index];
+ });
+ jsonData.push(obj);
+ });
+ const options = {
+ 'method': 'post',
+ 'contentType': 'application/json',
+ 'payload': JSON.stringify(jsonData)
+ };
+ UrlFetchApp.fetch('https://httpbin.org/post', options);
+}

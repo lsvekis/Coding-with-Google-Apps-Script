@@ -1,0 +1,18 @@
+function convertRangeToCSV() {
+  // You'll need to replace 'SHEETID' with your actual Google Sheet ID
+  const range = SpreadsheetApp.openById(SHEETID).getSheetByName('data').getDataRange();
+  const values = range.getValues();
+  let csvContent = ''; // Fixed to 'let' to allow modification
+  values.forEach(function(row) {
+    csvContent += row.join(',') + '\n';
+  });
+
+  // Log for testing; in practice, this is where you diverge to write to Drive
+  Logger.log(csvContent);
+  
+  // Write CSV content to a new file in Google Drive
+  const fileName = 'ExportedData.csv'; // Name your file
+  const folder = DriveApp.getRootFolder(); // Or specify another folder
+  const file = folder.createFile(fileName, csvContent, MimeType.PLAIN_TEXT);
+  Logger.log("CSV file created with ID: " + file.getId());
+}

@@ -1,0 +1,13 @@
+function exportSheetToPDF() {
+ const spreadsheetId = SHEETID;
+ const sheetId = '1764361424'; // You can find this in the sheet URL
+ const folderId = FOLDERID; // Where you want to save the PDF
+ const exportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=pdf&gid=${sheetId}`;
+ const response = UrlFetchApp.fetch(exportUrl, {
+ headers: {
+ 'Authorization': 'Bearer ' + ScriptApp.getOAuthToken()
+ }
+ });
+ const blob = response.getBlob().setName('ExportedSheet.pdf');
+ DriveApp.getFolderById(folderId).createFile(blob);
+}

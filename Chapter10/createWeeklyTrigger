@@ -1,0 +1,8 @@
+function createWeeklyTrigger() {
+ // Run 'generateAndSendReport' function every Monday at 9 AM
+ ScriptApp.newTrigger('generateAndSendReport')
+ .timeBased()
+ .onWeekDay(ScriptApp.WeekDay.MONDAY)
+ .atHour(9)
+ .create();
+}

@@ -1,0 +1,11 @@
+function scheduleMeetingsFromSheet() {
+ const sheet = SpreadsheetApp.openById(SHEETID).getSheetByName("data");
+ const data = sheet.getDataRange().getValues();
+ const calendar = CalendarApp.getDefaultCalendar();
+ data.forEach((row, index) => {
+ if (index === 0 || !row[4]) return; // Skip header and already processed rows
+ const [title, date, attendees, description] = row;
+ const event = calendar.createEvent(title, new Date(date), new Date(date), {description: description, guests: attendees});
+ sheet.getRange(index + 1, 5).setValue('Scheduled'); // Mark as scheduled
+ });
+}

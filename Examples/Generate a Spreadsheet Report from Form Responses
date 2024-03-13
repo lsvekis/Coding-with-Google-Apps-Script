@@ -1,0 +1,8 @@
+function generateFormReport() {
+const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+const formResponses = spreadsheet.getSheetByName('Form Responses 1');
+const reportSheet = spreadsheet.insertSheet('Report Summary');
+// Example: Summarize total responses
+const totalResponses = formResponses.getLastRow() - 1; // Adjust for header row
+reportSheet.appendRow(['Total Responses', totalResponses]);
+}

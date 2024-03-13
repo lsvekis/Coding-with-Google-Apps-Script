@@ -1,0 +1,13 @@
+function scheduleEmailReminders() {
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Schedule');
+const dataRange = sheet.getDataRange();
+const data = dataRange.getValues();
+data.forEach(function(row, index) {
+if (index === 0) return; // Skip header row
+const email = row[0]; // Assuming email addresses are in the first column
+const task = row[1]; // Assuming tasks are in the second column
+const message = 'Reminder: You have to ' + task;
+const subject = 'Daily Task Reminder';
+MailApp.sendEmail(email, subject, message);
+});
+}

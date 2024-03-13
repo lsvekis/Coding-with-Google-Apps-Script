@@ -1,0 +1,3 @@
+function logMessage() {
+Logger.log('Hello, Google Apps Script!');
+}

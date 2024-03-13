@@ -1,0 +1,3 @@
+function sendEmail() {
+GmailApp.sendEmail('recipient@example.com', 'Test Email', 'Hello from Google Apps Script!');
+}

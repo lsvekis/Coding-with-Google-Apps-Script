@@ -1,0 +1,4 @@
+function createAndShareDoc() {
+const doc = DocumentApp.create('Shared Document');
+DriveApp.getFileById(doc.getId()).addEditor('recipient@example.com');
+}

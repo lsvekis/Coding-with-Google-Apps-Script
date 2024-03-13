@@ -1,0 +1,6 @@
+function formatCells() {
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+const range = sheet.getRange('A1:A2');
+range.setBackground('yellow');
+range.setFontWeight('bold');
+}

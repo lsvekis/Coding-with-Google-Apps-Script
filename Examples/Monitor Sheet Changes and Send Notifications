@@ -1,0 +1,9 @@
+function onEdit(e) {
+var range = e.range;
+// Check if the edit is in a specific range (e.g., A1:A10)
+if (range.getSheet().getName() === 'Sheet1' && range.getRow() >= 1 && range.getRow() <= 10 && range.getColumn() === 1) {
+var emailAddress = 'your_email@example.com';
+var subject = 'Spreadsheet Edit Notification';
+var message = 'A cell in A1:A10 was edited. New value: ' + range.getValue();
+MailApp.sendEmail(emailAddress, subject, message);
+}

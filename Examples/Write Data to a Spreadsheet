@@ -1,0 +1,4 @@
+function writeSpreadsheet() {
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+sheet.getRange('B1').setValue('Hello, Sheet!');
+}

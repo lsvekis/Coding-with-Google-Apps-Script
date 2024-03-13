@@ -1,0 +1,14 @@
+function convertSheetToJson() {
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+const data = sheet.getDataRange().getValues();
+const headers = data.shift(); // First row as headers
+const jsonData = [];
+data.forEach(function(row) {
+const obj = {};
+headers.forEach(function(header, i) {
+obj[header] = row[i];
+});
+jsonData.push(obj);
+});
+Logger.log(JSON.stringify(jsonData));
+}

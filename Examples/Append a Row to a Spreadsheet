@@ -1,0 +1,4 @@
+function appendRow() {
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+sheet.appendRow(['New Data', 'More Data', 'Even More Data']);
+}

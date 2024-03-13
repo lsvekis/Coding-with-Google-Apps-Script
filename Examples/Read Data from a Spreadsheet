@@ -1,0 +1,8 @@
+function readSpreadsheet() {
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+const range = sheet.getRange('A1:A2');
+const values = range.getValues();
+for (const i = 0; i < values.length; i++) {
+Logger.log(values[i][0]);
+}
+}

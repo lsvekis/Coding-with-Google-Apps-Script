@@ -1,0 +1,21 @@
+function generatePDFs() {
+var dataSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data");
+var dataRange = dataSheet.getDataRange();
+var data = dataRange.getValues();
+var templateId = "TEMPLATE_DOCUMENT_ID";
+data.slice(1).forEach(function(row) {
+var docCopy = DriveApp.getFileById(templateId).makeCopy();
+var doc = DocumentApp.openById(docCopy.getId());
+var body = doc.getBody();
+// Replace placeholder text with actual data
+body.replaceText("{{Name}}", row[0]);
+body.replaceText("{{Date}}", row[1]);
+doc.saveAndClose();
+// Convert to PDF
+var pdf = DriveApp.getFileById(doc.getId()).getAs("application/pdf");
+var pdfName = row[0] + "_Document.pdf";
+DriveApp.createFile(pdf).setName(pdfName);
+// Optional: delete the Docs copy
+DriveApp.getFileById(doc.getId()).setTrashed(true);
+});
+}

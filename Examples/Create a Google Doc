@@ -1,0 +1,3 @@
+function createGoogleDoc() {
+DocumentApp.create('My New Document');
+}

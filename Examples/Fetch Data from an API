@@ -1,0 +1,4 @@
+function fetchData() {
+const response = UrlFetchApp.fetch('https://api.example.com/data');
+Logger.log(response.getContentText());
+}

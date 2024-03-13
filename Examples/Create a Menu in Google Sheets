@@ -1,0 +1,6 @@
+function onOpen() {
+const ui = SpreadsheetApp.getUi();
+ui.createMenu('Custom Menu')
+.addItem('Run Example', 'logMessage')
+.addToUi();
+}

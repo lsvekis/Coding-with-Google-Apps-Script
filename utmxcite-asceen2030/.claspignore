@@ -1,0 +1,7 @@
+tests/**
+README.md
+package.json
+.gitignore
+.claspignore
+tools/**
+demo/**

@@ -1,0 +1,1564 @@
+<script>
+(function () {
+  'use strict';
+
+  var APP_NAME = 'UTMXCITE 4 ASCEND 2030 Report';
+  var DASH_TITLE = 'Dashboard KPI UTMXCITE JTNCHEPA';
+  var S = {
+    token: null, session: null,
+    view: { name: 'infografik' },
+    year: null, dash: null,
+    list: null, listFilters: {}, editing: null,
+    users: null, targets: null, audit: null,
+    navOpen: false, login: null, busy: false,
+    people: {}, files: {}, peopleKp: {}, dashView: 'level', open: {}, mini: false
+  };
+
+  // ------------------------------------------------------------------ utiliti
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  // Log masuk berterusan: token disimpan dalam localStorage (kekal selepas pelayar ditutup) sehingga log keluar.
+  // Jika localStorage disekat, guna sessionStorage; jika tiada storan, memori sahaja.
+  function store(op, key, val) {
+    var out = null;
+    ['localStorage', 'sessionStorage'].forEach(function (kind, i) {
+      try {
+        var st = window[kind];
+        if (op === 'get') { if (out === null) { var v = st.getItem(key); if (v !== null) out = v; } }
+        else if (op === 'set') { if (i === 0) { st.setItem(key, val); } else { st.removeItem(key); } }
+        else if (op === 'del') st.removeItem(key);
+      } catch (e) { /* storan tidak tersedia */ }
+    });
+    if (op === 'set') { try { if (window.localStorage.getItem(key) !== val) window.sessionStorage.setItem(key, val); } catch (e) { try { window.sessionStorage.setItem(key, val); } catch (e2) { /* memori sahaja */ } } }
+    return out;
+  }
+  function toast(msg, bad) {
+    var t = $('#toast');
+    t.textContent = msg;
+    t.className = 'show' + (bad ? ' bad' : '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.className = ''; }, 3800);
+  }
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      var run = google.script.run
+        .withSuccessHandler(function (r) {
+          if (r && r.ok) return resolve(r.data);
+          var e = new Error((r && r.error) || 'Ralat tidak diketahui.');
+          e.fields = r && r.fields; e.missing = r && r.missing; e.auth = r && r.auth;
+          reject(e);
+        })
+        .withFailureHandler(function (err) { reject(new Error((err && err.message) || 'Ralat rangkaian. Cuba lagi.')); });
+      run[fn].apply(run, args);
+    });
+  }
+  function authFail(e) {
+    if (e && e.auth) {
+      S.token = null; S.session = null; store('del', 'utmx_token');
+      S.view = { name: 'infografik' };
+      toast(e.message, true);
+      render();
+      return true;
+    }
+    return false;
+  }
+  function fmtNum(n) { return (Math.round(n * 10) / 10).toString(); }
+  function initials(name, email) {
+    var s = (name || email || '?').trim().split(/\s+/);
+    return ((s[0] || '?').charAt(0) + (s.length > 1 ? s[s.length - 1].charAt(0) : '')).toUpperCase();
+  }
+  function kpiById(id) {
+    var k = (S.session && S.session.kpis || []).filter(function (x) { return x.id === id; });
+    return k[0] || null;
+  }
+  function fnById(list, id) { return (list || []).filter(function (x) { return x.id === id; })[0] || null; }
+  function fnLabel(f) { return (f.no ? f.no + ' · ' : '') + f.label; }
+  function isAdmin() { return S.session && S.session.user.peranan === 'Admin'; }
+
+  // Dialog pengesahan dalam halaman (window.confirm mungkin disekat dalam iframe kotak pasir).
+  function askConfirm(message, okLabel) {
+    return new Promise(function (resolve) {
+      var box = $('#confirm');
+      box.innerHTML = '<div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="ctitle"><div class="dlg">' +
+        '<h2 id="ctitle">Pengesahan</h2><p>' + esc(message) + '</p>' +
+        '<div class="acts"><button class="btn d" id="cyes">' + esc(okLabel || 'Ya, teruskan') + '</button><button class="btn o" id="cno">Batal</button></div></div></div>';
+      function done(v) { box.innerHTML = ''; document.removeEventListener('keydown', onKey, true); resolve(v); }
+      function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); done(false); } }
+      document.addEventListener('keydown', onKey, true);
+      $('#cyes').addEventListener('click', function () { done(true); });
+      $('#cno').addEventListener('click', function () { done(false); });
+      $('#cno').focus();
+    });
+  }
+
+  // ------------------------------------------------------------------ rangka
+  function render() {
+    if (S.login) { renderLogin(); return; }
+    var app = $('#app');
+    var u = S.session && S.session.user;
+    app.innerHTML =
+      '<div class="shell">' +
+      '<aside class="side' + (S.navOpen ? ' open' : '') + (S.mini ? ' mini' : '') + '" id="side" aria-label="Menu utama">' + renderSide(u) + '</aside>' +
+      '<div class="scrim' + (S.navOpen ? ' open' : '') + '" data-action="closenav"></div>' +
+      '<div class="main">' +
+      '<header class="top"><div class="tt">' +
+      '<button class="burger" data-action="togglenav" aria-label="Buka menu">☰</button><h1>' + esc(pageTitle()) + '</h1></div>' +
+      '<div class="user">' + (u
+        ? '<span class="badge">' + esc(u.peranan) + (u.peranan === 'PIC' ? ' · ' + esc(u.fakulti) : '') + '</span>' +
+          '<button class="btn o" data-action="logout">Log Keluar</button>'
+        : '<span class="em">Paparan awam</span><button class="btn" data-action="login">Log Masuk</button>') +
+      '</div></header>' +
+      '<div id="tabs"></div><main class="cont" id="content"></main></div></div>' +
+      '<div id="modal"></div><div id="confirm"></div>';
+    renderView();
+  }
+
+  // ---- Ikon garis (inline SVG, gaya sama dengan portal UTM)
+  var ICONS = {
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+    box: '<rect x="3.5" y="4" width="17" height="4.5" rx="1"/><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4"/>',
+    chev: '<path d="M6 9l6 6 6-6"/>',
+    user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/>',
+    target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8"/>',
+    list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+  };
+  function ico(n) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[n] + '</svg>'; }
+
+  // Sidebar: satu bahagian "PERINGKAT" dengan tiga kumpulan boleh dilipat (Universiti = KAI, Jabatan = DKAI, Pusat = CKAI).
+  // Di dalam kumpulan, subtajuk kecil: KAI mengikut Growth / Transform, CKAI mengikut enam fungsi.
+  function groupKey(k) { return k.level === 'CKAI' ? k.fungsi : k.level === 'KPT' ? k.teras : k.group; }
+  function terasById(list, id) { var r = null; (list || []).forEach(function (t) { if (t.id === id) r = t; }); return r; }
+  function levelOf(target) {   // pulangkan id kumpulan yang perlu dibuka bagi sasaran navigasi
+    if (target.indexOf('kpi:') === 0) { var k = kpiById(target.slice(4)); return k ? k.level : null; }
+    return { users: 'ADMIN', targets: 'ADMIN', audit: 'ADMIN', setup: 'ADMIN' }[target] || null;
+  }
+  function groupActive(g) {
+    var v = S.view;
+    if (g === 'ADMIN') return v.name === 'users' || v.name === 'targets' || v.name === 'audit' || v.name === 'setup';
+    if (v.name === 'kpi') { var k = kpiById(v.id); return !!k && k.level === g; }
+    return false;
+  }
+  function isOpen(g) { return S.open[g] === undefined ? groupActive(g) : !!S.open[g]; }
+  function groupHtml(g, label, bodyHtml, title) {
+    var open = isOpen(g);
+    return '<button type="button" class="gh' + (groupActive(g) ? ' has-act' : '') + '" data-action="tg" data-g="' + esc(g) + '" aria-expanded="' + open + '" title="' + esc(title || label) + '">' +
+      '<span class="ic">' + ico('box') + '</span><span class="lb">' + esc(label) + '</span><span class="cv">' + ico('chev') + '</span></button>' +
+      '<div class="gb" data-g="' + esc(g) + '"' + (open ? '' : ' hidden') + '>' + bodyHtml + '</div>';
+  }
+
+  function renderSide(u) {
+    var h = '<div class="sh"><button type="button" class="hb" data-action="collapse" aria-label="Kecilkan atau besarkan menu" title="Menu">' + ico('menu') + '</button>' +
+      (window.UTM_LOGO ? '<img class="shlogo" src="' + window.UTM_LOGO + '" alt="Universiti Teknologi Malaysia ASCEND 2030">' : '') +
+      '<div class="shname"><b>' + esc(APP_NAME) + '</b><small>DS04 · Pekerjaan Premium Tier 1</small></div></div><div class="sbody">';
+    h += u
+      ? '<div class="prof"><div class="av">' + esc(initials(u.nama, u.emel)) + '</div><div><b>' + esc(u.nama || u.emel) + '</b><small>' + esc(u.emel) + '</small></div></div>' + '<button type="button" class="lnk" data-action="logoutall" title="Tamatkan sesi pada semua peranti dan pelayar">Log keluar semua peranti</button>'
+      : '<div class="prof"><div class="av">?</div><div><b>Pengunjung</b><small>Belum log masuk</small></div></div>';
+    h += navBtn('infografik', ico('chart'), 'Infografik', S.view.name === 'infografik');
+    h += navBtn('dashboard', ico('grid'), 'Dashboard', S.view.name === 'dashboard');
+    if (u) {
+      h += '<div class="mod">Peringkat</div>';
+      S.session.levels.forEach(function (lv) {
+        var ks = S.session.kpis.filter(function (k) { return k.level === lv.id; });
+        if (!ks.length) return;
+        var body = '', last = null;
+        ks.forEach(function (k) {
+          var key = groupKey(k);
+          if (lv.id !== 'DKAI' && key !== last) {
+            last = key;
+            var sub = key, subTitle = key;
+            if (lv.id === 'CKAI') { var fn = fnById(S.session.functions, key); if (fn) { sub = fnLabel(fn); subTitle = fn.ms; } }
+            if (lv.id === 'KPT') { var ts = terasById(S.session.teras, key); if (ts) { sub = 'Teras ' + ts.no + ' · ' + ts.label; subTitle = sub; } }
+            body += '<div class="stagelbl" title="' + esc(subTitle) + '">' + esc(sub) + '</div>';
+          }
+          body += navBtn('kpi:' + k.id, '<span class="dot"></span>', k.title.replace(/ · .*/, '') + ' · ' + k.short, S.view.name === 'kpi' && S.view.id === k.id);
+        });
+        h += groupHtml(lv.id, lv.short || lv.label, body, lv.label);
+      });
+      if (isAdmin()) {
+        h += '<div class="mod">Admin</div>' + groupHtml('ADMIN', 'Pentadbiran',
+          navBtn('users', ico('user'), 'Urus Pengguna', S.view.name === 'users') +
+          navBtn('targets', ico('target'), 'Sasaran', S.view.name === 'targets') +
+          navBtn('audit', ico('list'), 'Log Audit', S.view.name === 'audit') +
+          navBtn('setup', ico('target'), 'Persediaan', S.view.name === 'setup'));
+      }
+    }
+    return h + '</div>';
+  }
+  function redrawSide() {
+    var side = $('#side'); if (!side) return;
+    side.className = 'side' + (S.navOpen ? ' open' : '') + (S.mini ? ' mini' : '');
+    side.innerHTML = renderSide(S.session && S.session.user);
+  }
+  function navBtn(target, icon, label, act) {
+    return '<button class="nav' + (act ? ' act' : '') + '" data-nav="' + esc(target) + '"' + (act ? ' aria-current="page"' : '') + ' title="' + esc(label) + '">' +
+      '<span class="ic" aria-hidden="true">' + icon + '</span><span class="lb">' + esc(label) + '</span></button>';
+  }
+  function pageTitle() {
+    var v = S.view;
+    if (v.name === 'dashboard') return DASH_TITLE;
+    if (v.name === 'infografik') return 'Laporan Prestasi UTMXCITE';
+    if (v.name === 'kpi') { var k = kpiById(v.id); return k ? k.title : 'KPI'; }
+    return { users: 'Urus Pengguna', targets: 'Sasaran', audit: 'Log Audit', setup: 'Persediaan & Pautan' }[v.name] || APP_NAME;
+  }
+  function renderView() {
+    $('#tabs').innerHTML = '';
+    var v = S.view;
+    if (v.name === 'dashboard') return renderDashboard();
+    if (v.name === 'infografik') return renderInfo();
+    if (!S.session) { S.view = { name: 'infografik' }; return renderInfo(); }
+    if (v.name === 'kpi') return renderKpi();
+    if (v.name === 'users') return renderUsers();
+    if (v.name === 'targets') return renderTargets();
+    if (v.name === 'audit') return renderAudit();
+    if (v.name === 'setup') return renderSetup();
+  }
+
+  // ------------------------------------------------------------------ dashboard
+  function loadDashboard(year) {
+    $('#content').innerHTML = '<p class="boot">Memuatkan dashboard…</p>';
+    call('api_dashboard', year || S.year || '').then(function (d) {
+      S.dash = d; S.year = d.year;
+      if (S.view.name === 'dashboard') renderDashboard();
+    }).catch(function (e) { $('#content').innerHTML = '<p class="boot">' + esc(e.message) + '</p>'; });
+  }
+
+  function statusChip(s) {
+    var cls = s === 'Melebihi sasaran' || s === 'Selesai' ? 'over' : s === 'Capai sasaran' ? 'meet' : s === 'Di bawah sasaran' || s === 'Melebihi peruntukan' ? 'below' : 'none';
+    return '<span class="chip ' + cls + '">' + esc(s) + '</span>';
+  }
+  function money(n) { return 'RM ' + Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtVal(c, v) { return c.format === 'rm' ? money(v) : c.format === 'pct' ? fmtNum(v) + '%' : (c.jenis === 'kemajuan' || c.jenis === 'penggunaan') ? fmtNum(v) + '%' : fmtNum(v); }
+  function fmtItem(c, v, title) { if (/\(%\)|^%/.test(title || '')) return fmtNum(v) + '%'; if (/\(RM\)/.test(title || '')) return money(v); return c.format === 'rm' ? money(v) : fmtNum(v); }
+
+  function progressBar(pct) {
+    if (pct === null || pct === undefined) return '<div class="track" aria-hidden="true"></div>';
+    var scale = Math.max(pct, 100);
+    var fill = Math.min(pct, 100) / scale * 100;
+    var over = pct > 100 ? (pct - 100) / scale * 100 : 0;
+    return '<div class="track" role="progressbar" aria-valuenow="' + esc(pct) + '" aria-valuemin="0" aria-valuemax="100">' +
+      '<div class="f" style="width:' + fill.toFixed(1) + '%"></div>' +
+      (over ? '<div class="x" style="left:' + fill.toFixed(1) + '%;width:' + over.toFixed(1) + '%"></div><div class="tick" style="left:' + fill.toFixed(1) + '%"></div>' : '') +
+      '</div>';
+  }
+
+  function renderCard(c) {
+    var h = '<article class="kcard"><span class="tag ' + esc(c.group) + '">' + esc(c.group) + '</span>' +
+      '<div class="t">' + esc(c.title) + '</div>' +
+      '<div class="v">' + esc(fmtVal(c, c.value)) + (c.target !== '' ? ' <small>/ ' + esc(fmtVal(c, c.target)) + (c.jenis === 'kemajuan' || c.jenis === 'penggunaan' ? '' : ' minimum') + '</small>' : ' <small>' + esc(c.unit) + '</small>') + '</div>' +
+      progressBar(c.pct) +
+      '<div class="chips">' + statusChip(c.status) + (c.pct !== null ? '<span class="sec2"><b>' + esc(fmtNum(c.pct)) + '%</b> daripada sasaran ' + esc(S.year) + '</span>' : '') + '</div>';
+    if (c.quarter) {
+      h += '<div class="sec2">Sasaran suku tahun Q' + c.quarter + ': <b>' + (c.quarterTarget === '' ? 'N/A' : esc(fmtVal(c, c.quarterTarget))) + '</b> ' +
+        (c.quarterTarget === '' ? '' : statusChip(c.quarterStatus)) + '</div>';
+    }
+    (c.secondary || []).forEach(function (s) { h += '<div class="sec2">' + esc(s.label) + ': <b>' + esc(s.value) + '</b></div>'; });
+    (c.warnings || []).forEach(function (w) { h += '<div class="warn">' + esc(w) + '</div>'; });
+    if (c.secondaryTargets) h += '<div class="sec2">' + esc(c.secondaryTargets) + '</div>';
+    if (c.breakdown && c.breakdown.some(function (b) { return b.items.length; })) {
+      h += '<details class="bd"><summary>Butiran</summary>';
+      c.breakdown.forEach(function (b) {
+        if (!b.items.length) return;
+        h += '<h4>' + esc(b.title) + '</h4>';
+        var max = Math.max.apply(null, b.items.map(function (i) { return Math.max(i.value, i.target || 0); }).concat([1]));
+        if (/\(%\)|^%/.test(b.title)) max = Math.max(100, max);
+        b.items.forEach(function (i) {
+          h += '<div class="bi' + (String(i.label).length > 16 ? ' long' : '') + '"><span class="l" title="' + esc(i.label) + '">' + esc(i.label) + '</span>' +
+            '<span class="mini"><i style="width:' + Math.min(100, i.value / max * 100).toFixed(0) + '%"></i></span>' +
+            '<span class="n">' + esc(fmtItem(c, i.value, b.title)) + (i.target ? ' / ' + esc(i.target) : '') + '</span></div>';
+        });
+      });
+      h += '</details>';
+    }
+    return h + '</article>';
+  }
+
+  function renderDashboard() {
+    var el = $('#content');
+    var d = S.dash;
+    if (!d) { loadDashboard(); return; }
+    var h = (!S.session ? '<div class="pub">Paparan awam · hanya data ringkasan ditunjukkan. Log masuk diperlukan untuk mengemas kini data.</div>' : '');
+    h += '<div class="bar-top"><label for="yr" style="margin:0">Tahun</label><select id="yr" data-change="year">' +
+      d.years.map(function (y) { return '<option' + (y === d.year ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<div class="seg" role="group" aria-label="Paparan dashboard"><button type="button" data-action="dview" data-view="level" class="' + (S.dashView === 'level' ? 'on' : '') + '" aria-pressed="' + (S.dashView === 'level') + '">Mengikut peringkat</button>' +
+      '<button type="button" data-action="dview" data-view="fungsi" class="' + (S.dashView === 'fungsi' ? 'on' : '') + '" aria-pressed="' + (S.dashView === 'fungsi') + '">Mengikut fungsi</button></div>' +
+      '<span class="grow sec2">Dikemas kini: ' + esc(String(d.generatedAt).replace('T', ' ')) + '</span></div>';
+    h += '<div class="sumrow"><div class="ds"><span>' + esc(d.ds.label) + '</span><b>' + esc(d.ds.goal) + '</b>' +
+      '<span>' + d.summary.meet + ' daripada ' + d.summary.total + ' KPI mencapai sasaran ' + d.year + '</span></div>' +
+      (d.premium ? '<div class="ds prem"><span>Ukuran Pekerjaan Premium Tier 1 · ' + d.year + '</span><b>' + d.premium.pct + '%</b>' +
+        '<span>' + d.premium.premium + ' daripada ' + d.premium.total + ' usahawan melaporkan purata pendapatan sebulan melebihi RM' + String(d.premium.thresholdRm).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '</span>' +
+        '<div class="pbar" title="' + d.premium.pctOfTarget + '% daripada sasaran"><i style="width:' + Math.min(100, d.premium.pctOfTarget) + '%"></i></div>' +
+        '<span>Sasaran ' + d.premium.targetYear + ': ' + d.premium.targetPct + '%</span></div>' : '') + '</div>';
+    function fnHead(f) { return '<div class="sub"><b>' + esc(fnLabel(f)) + '</b><span class="subms">' + esc(f.ms) + '</span></div>'; }
+    if (S.dashView === 'fungsi') {
+      // Paparan mengikut enam fungsi UTMXCITE: setiap fungsi menunjukkan semua indikator berkaitan (KAI, DKAI dan CKAI).
+      d.functions.forEach(function (f) {
+        var fc = d.kpis.filter(function (c) { return c.fungsi === f.id; });
+        if (!fc.length) return;
+        h += '<div class="grp">' + esc(fnLabel(f)) + '<span class="grpms">' + esc(f.ms) + '</span></div><div class="grid">' + fc.map(renderCard).join('') + '</div>';
+      });
+    } else {
+      d.levels.forEach(function (lv) {
+        var cs = d.kpis.filter(function (c) { return c.level === lv.id; });
+        if (!cs.length) return;
+        h += '<div class="grp">' + esc(lv.label) + '</div>';
+        if (lv.id === 'KPT') {
+          d.teras.forEach(function (t) {
+            var sc = cs.filter(function (c) { return c.teras === t.id; });
+            if (sc.length) h += '<div class="sub"><b>Teras ' + t.no + '</b><span class="subms">' + esc(t.label) + '</span></div><div class="grid">' + sc.map(renderCard).join('') + '</div>';
+          });
+        } else if (lv.id === 'CKAI') {
+          d.functions.forEach(function (f) {
+            var sc = cs.filter(function (c) { return c.fungsi === f.id; });
+            if (sc.length) h += fnHead(f) + '<div class="grid">' + sc.map(renderCard).join('') + '</div>';
+          });
+        } else {
+          h += '<div class="grid">' + cs.map(renderCard).join('') + '</div>';
+        }
+      });
+    }
+    el.innerHTML = h;
+  }
+
+  // ------------------------------------------------------------------ KPI: senarai & borang
+  function renderKpi() {
+    var k = kpiById(S.view.id);
+    if (!k) { $('#content').innerHTML = '<p class="boot">Anda tiada akses kepada KPI ini.</p>'; return; }
+    var tab = S.view.tab || 'list';
+    $('#tabs').innerHTML = '<div class="tabs" role="tablist">' +
+      '<button class="tab' + (tab === 'list' ? ' act' : '') + '" role="tab" data-action="tab" data-tab="list">▤ Senarai</button>' +
+      '<button class="tab' + (tab === 'form' ? ' act' : '') + '" role="tab" data-action="tab" data-tab="form">＋ ' + (S.editing ? 'Edit Rekod' : 'Masuk Data') + '</button>' +
+      '<button class="tab' + (tab === 'bulk' ? ' act' : '') + '" role="tab" data-action="tab" data-tab="bulk">⬆ Muat Naik Pukal</button></div>';
+    if (tab === 'list') return renderList(k);
+    if (tab === 'bulk') return renderBulk(k);
+    return renderForm(k);
+  }
+
+
+  // ------------------------------------------------------------------ muat naik pukal (CSV)
+  var BULK_MAX_ROWS = 500, BULK_CHUNK = 40;
+  function bulkFields(k) {
+    return k.fields.filter(function (f) { return f.type !== 'file' && !f.hidden && !f.derived && !(f.key === 'fakulti' && !isAdmin()); });
+  }
+  function csvCell(v) { return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"'; }
+  function csvText(rows) { return '﻿' + rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n'; }
+  function saveCsv(name, text) {
+    var url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+    var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 15000);
+  }
+  function exampleFor(f) {
+    if (f.type === 'date') return '2026-03-15';
+    if (f.type === 'month') return '2026-03';
+    if (f.type === 'number') return f.min > 0 ? String(f.min) : '0';
+    if (f.type === 'yesno') return 'Ya';
+    if (f.type === 'select') return f.options[0];
+    if (f.type === 'faculty') return 'FAI';
+    if (f.type === 'email') return 'nama@utm.my';
+    if (f.type === 'url') return 'https://contoh.my';
+    if (f.type === 'time') return '09:00';
+    if (f.type === 'people') return 'A24XX0001##A24XX0002';
+    return 'contoh';
+  }
+  function guideFor(f) {
+    var g = f.required ? 'WAJIB' : 'pilihan';
+    if (f.type === 'date') g += ' · YYYY-MM-DD';
+    else if (f.type === 'month') g += ' · YYYY-MM';
+    else if (f.type === 'number') g += ' · nombor';
+    else if (f.type === 'yesno') g += ' · Ya / Tidak';
+    else if (f.type === 'select') g += ' · ' + f.options.join(' / ');
+    else if (f.type === 'faculty') g += ' · kod fakulti';
+    else if (f.type === 'people') g += ' · no. matrik sahaja, pisahkan dengan ##';
+    return g;
+  }
+  function downloadTemplate(k) {
+    var fs = bulkFields(k);
+    saveCsv(k.id + '_templat.csv', csvText([
+      fs.map(function (f) { return f.label + ' [' + f.key + ']'; }),
+      fs.map(guideFor).map(function (g, i) { return (i === 0 ? '#PANDUAN: ' : '') + g; }),
+      fs.map(exampleFor).map(function (g, i) { return (i === 0 ? '#CONTOH: ' : '') + g; })
+    ]));
+  }
+  // Pengurai CSV (pembatas , atau ; dikesan daripada baris pertama; sokong petikan dan baris baharu dalam sel)
+  function parseCsv(text) {
+    text = String(text || '').replace(/^﻿/, '');
+    var first = text.split(/\r?\n/)[0] || '';
+    var delim = (first.match(/;/g) || []).length > (first.match(/,/g) || []).length ? ';' : ',';
+    var rows = [], row = [], cell = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+      else if (c === '"') q = true;
+      else if (c === delim) { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += c;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+  function normCell(f, raw) {
+    var v = String(raw === undefined || raw === null ? '' : raw).trim(), m, lo;
+    if (v === '') return '';
+    function p2(n) { return ('0' + n).slice(-2); }
+    function y4(y) { y = parseInt(y, 10); return y < 100 ? 2000 + y : y; }
+    if (f.type === 'date') {
+      if ((m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(v))) return y4(m[3]) + '-' + p2(m[2]) + '-' + p2(m[1]);
+      if ((m = /^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/.exec(v)) || (m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v))) return m[1] + '-' + p2(m[2]) + '-' + p2(m[3]);
+    } else if (f.type === 'month') {
+      if ((m = /^(\d{1,2})[\/.-](\d{4})$/.exec(v))) return m[2] + '-' + p2(m[1]);
+      if ((m = /^(\d{4})[\/.-](\d{1,2})$/.exec(v))) return m[1] + '-' + p2(m[2]);
+      if ((m = /^\d{1,2}[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(v))) return m[2] + '-' + p2(m[1]);
+      if ((m = /^(\d{4})-(\d{1,2})-\d{1,2}$/.exec(v))) return m[1] + '-' + p2(m[2]);
+    } else if (f.type === 'number') {
+      return v.replace(/^RM\s*/i, '').replace(/[\s,]/g, '');
+    } else if (f.type === 'yesno') {
+      lo = v.toLowerCase();
+      if (['ya', 'y', 'yes', '1', 'true'].indexOf(lo) >= 0) return 'Ya';
+      if (['tidak', 't', 'no', 'n', '0', 'false'].indexOf(lo) >= 0) return 'Tidak';
+    } else if (f.type === 'select') {
+      lo = v.toLowerCase();
+      for (var i = 0; i < f.options.length; i++) if (f.options[i].toLowerCase() === lo) return f.options[i];
+    } else if (f.type === 'faculty') {
+      return v.toUpperCase();
+    } else if (f.type === 'people') {
+      return v.split('##').map(function (x) { var a = x.split('|'); return { matrik: (a.length > 1 ? a[1] : a[0]).trim() }; }).filter(function (x) { return x.matrik; });
+    }
+    return v;
+  }
+  function readBulkFile(k, file) {
+    if (!file) return;
+    if (file.size > 1048576) { toast('Fail terlalu besar (maksimum 1 MB).', true); return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      var all = parseCsv(String(rd.result)), fs = bulkFields(k), b = { kpiId: k.id, file: file.name, rows: [], problems: [], raws: {}, headers: [] };
+      var hi = -1;
+      for (var i = 0; i < all.length; i++) { if (all[i].some(function (c) { return String(c).trim() !== ''; }) && String(all[i][0]).trim().charAt(0) !== '#') { hi = i; break; } }
+      if (hi < 0) { b.problems.push('Fail kosong.'); S.bulk = b; renderBulk(k); return; }
+      var cols = all[hi].map(function (h) { var m = /\[([A-Za-z0-9_]+)\]\s*$/.exec(String(h)); return m ? m[1] : String(h).trim(); });
+      var byKey = {}; fs.forEach(function (f) { byKey[f.key] = f; });
+      var known = cols.filter(function (c) { return byKey[c]; });
+      b.headers = cols;
+      fs.filter(function (f) { return f.required && cols.indexOf(f.key) < 0; }).forEach(function (f) { b.problems.push('Lajur wajib tiada: ' + f.label + ' [' + f.key + ']'); });
+      cols.filter(function (c) { return !byKey[c]; }).forEach(function (c) { b.problems.push('Lajur tidak dikenali (diabaikan): ' + c); });
+      for (var r = hi + 1; r < all.length; r++) {
+        var cells = all[r];
+        if (!cells.some(function (c) { return String(c).trim() !== ''; }) || String(cells[0]).trim().charAt(0) === '#') continue;
+        var rec = {};
+        cols.forEach(function (c, j) { if (byKey[c]) { var v = normCell(byKey[c], cells[j]); if (v !== '' && !(Array.isArray(v) && !v.length)) rec[c] = v; } });
+        b.rows.push({ n: r + 1, rec: rec }); b.raws[r + 1] = cells;
+      }
+      if (b.rows.length > BULK_MAX_ROWS) { b.problems.push('Terlalu banyak baris (' + b.rows.length + '). Maksimum ' + BULK_MAX_ROWS + ' baris setiap muat naik.'); b.rows = []; }
+      if (!b.rows.length && !b.problems.length) b.problems.push('Tiada baris data dijumpai selepas baris tajuk.');
+      b.fatal = b.problems.some(function (p) { return /^(Fail|Lajur wajib|Terlalu|Tiada baris)/.test(p); });
+      S.bulk = b; renderBulk(k);
+    };
+    rd.onerror = function () { toast('Fail tidak dapat dibaca.', true); };
+    rd.readAsText(file, 'utf-8');
+  }
+  function runBulk(k) {
+    var b = S.bulk; if (!b || b.busy || b.fatal || !b.rows.length) return;
+    b.busy = true; b.done = 0; b.results = []; renderBulk(k);
+    var i = 0;
+    (function next() {
+      if (i >= b.rows.length) { b.busy = false; b.finished = true; S.list = null; renderBulk(k); return; }
+      var chunk = b.rows.slice(i, i + BULK_CHUNK);
+      call('api_bulkSave', S.token, k.id, chunk).then(function (r) {
+        b.results = b.results.concat(r.results); i += BULK_CHUNK; b.done = Math.min(i, b.rows.length);
+        var el = $('#bulkprog'); if (el) el.textContent = b.done + ' / ' + b.rows.length + ' baris diproses…';
+        next();
+      }).catch(function (e) { b.busy = false; if (!authFail(e)) { toast(e.message, true); b.finished = true; renderBulk(k); } });
+    })();
+  }
+  function bulkCompleteStudents(k) {
+    var b = S.bulk; if (!b || !b.results) return;
+    var ms = {}; b.results.forEach(function (r) { (r.missing || []).forEach(function (m) { ms[stuKey(m)] = m; }); });
+    var list = Object.keys(ms).slice(0, 50);
+    if (!list.length) return;
+    lookupStu(k, list).then(function (r) {
+      var inc = r.filter(function (v) { return !v.complete; });
+      if (!inc.length) { toast('Semua pelajar sudah lengkap. Muat naik semula baris yang gagal.'); return; }
+      openStudentModal(inc, function () { toast('Selesai. Muat naik semula baris yang gagal (muat turun CSV baris gagal).'); });
+    }).catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+  }
+  function downloadBulkErrors(k) {
+    var b = S.bulk; if (!b || !b.results) return;
+    var bad = b.results.filter(function (r) { return !r.ok; });
+    var out = [b.headers.concat(['RALAT'])];
+    bad.forEach(function (r) { out.push((b.raws[r.n] || []).concat([r.error + (r.fields ? ': ' + Object.keys(r.fields).map(function (x) { return x + ' - ' + r.fields[x]; }).join('; ') : '')])); });
+    saveCsv(k.id + '_baris_gagal.csv', csvText(out));
+  }
+  function renderBulk(k) {
+    var fs = bulkFields(k), b = S.bulk && S.bulk.kpiId === k.id ? S.bulk : null, h = '';
+    h += '<div class="panel"><h3>1. Muat turun templat</h3><p class="muted">Templat CSV mengandungi tajuk lajur, satu baris panduan (wajib / pilihan dan nilai dibenarkan) dan satu baris contoh. Baris bermula dengan # diabaikan semasa muat naik. Isi data di bawah baris tajuk, simpan sebagai <b>CSV</b>.</p>' +
+      '<p class="muted">Lajur: ' + fs.map(function (f) { return esc(f.label) + (f.required ? '*' : ''); }).join(' · ') + '.</p>' +
+      '<p class="muted">Bagi pelajar, isi <b>no. matrik</b> sahaja; nama, no. KP, e-mel dan telefon diambil daripada tab PELAJAR. Pelajar yang belum ada dalam PELAJAR akan dilaporkan sebagai baris gagal dan boleh dilengkapkan selepas muat naik.</p>' +
+      '<p class="muted">Lampiran PDF tidak boleh dimuat naik secara pukal; tambah melalui Senarai &gt; Edit rekod. Tarikh: YYYY-MM-DD (format hari/bulan/tahun diterima). Formatkan lajur no. KP / no. matrik sebagai Teks dalam Excel supaya sifar di hadapan tidak hilang.</p>' +
+      '<button class="btn" type="button" data-action="bulkdl">⬇ Muat turun templat (' + esc(k.id) + ')</button></div>';
+    h += '<div class="panel"><h3>2. Muat naik fail CSV</h3>' +
+      (isAdmin() || k.entry !== 'faculty' ? '' : '<p class="muted">Semua rekod akan direkodkan bagi fakulti anda (' + esc(S.session.user.fakulti) + ').</p>') +
+      '<input type="file" id="bulkfile" accept=".csv,text/csv" data-change="bulkfile" aria-label="Pilih fail CSV"' + (b && b.busy ? ' disabled' : '') + '>';
+    if (b) {
+      h += '<p><b>' + esc(b.file) + '</b> · ' + b.rows.length + ' baris data dikesan.</p>';
+      if (b.problems.length) h += '<ul class="chk">' + b.problems.map(function (p) { return '<li data-ok="0">' + esc(p) + '</li>'; }).join('') + '</ul>';
+      if (!b.finished && !b.busy && !b.fatal && b.rows.length) h += '<button class="btn" type="button" data-action="bulkgo">Simpan ' + b.rows.length + ' rekod</button> <span class="muted">Setiap baris disemak seperti borang tunggal. Baris yang sah disimpan; baris yang gagal dilaporkan.</span>';
+      if (b.busy) h += '<p id="bulkprog" role="status">' + (b.done || 0) + ' / ' + b.rows.length + ' baris diproses…</p>';
+      if (b.finished) {
+        var okN = b.results.filter(function (r) { return r.ok; }).length, bad = b.results.filter(function (r) { return !r.ok; });
+        h += '<p role="status"><b>' + okN + ' rekod berjaya disimpan</b>' + (bad.length ? ', <b style="color:var(--bad)">' + bad.length + ' baris gagal</b>' : '') + '.</p>';
+        if (bad.length) {
+          h += '<p class="muted">Betulkan baris yang gagal dan muat naik semula <b>hanya baris tersebut</b> (jangan muat naik baris yang sudah berjaya).</p>' +
+            '<div class="tablewrap"><table><thead><tr><th>Baris</th><th>Masalah</th></tr></thead><tbody>' +
+            bad.slice(0, 200).map(function (r) {
+              return '<tr><td>' + r.n + '</td><td>' + esc(r.error) + (r.fields ? '<div class="muted">' + Object.keys(r.fields).map(function (x) { return esc(x) + ': ' + esc(r.fields[x]); }).join('<br>') + '</div>' : '') + '</td></tr>';
+            }).join('') + '</tbody></table></div>' +
+            '<button class="btn o" type="button" data-action="bulkerr">⬇ Muat turun baris gagal (CSV)</button> ' +
+            (bad.some(function (r) { return r.missing && r.missing.length; }) ? '<button class="btn" type="button" data-action="bulkstu">Lengkapkan maklumat pelajar</button> ' : '');
+        }
+        h += '<button class="btn o" type="button" data-action="bulkreset">Muat naik fail lain</button> <button class="btn" type="button" data-action="tab" data-tab="list">Lihat senarai</button>';
+      }
+    }
+    $('#content').innerHTML = h + '</div>';
+  }
+
+  // ---- Segerak CKAI 5 daripada Sheet permohonan (Admin)
+  function msyncHtml() {
+    var m = S.msync; if (!m) return '';
+    var h = '<div class="panel" role="status"><h3>Segerak daripada Sheet permohonan</h3>';
+    if (m.busy) return h + '<p>Menyegerak… ' + m.imported + ' diimport, ' + m.skipped + ' sedia ada' + (m.total ? ' · baris sumber diproses: ' + (m.row || 0) + ' / ' + m.total : ' · membaca Sheet sumber (boleh mengambil sehingga satu minit)') + '.</p></div>';
+    if (m.error) return h + '<p class="err" style="display:block">' + esc(m.error) + '</p></div>';
+    h += '<p><b>' + m.imported + ' rekod diimport</b>, ' + m.skipped + ' sudah ada' + (m.students ? ', ' + m.students + ' pelajar didaftar / dilengkapkan dalam PELAJAR' : '') + (m.failed.length ? ', <b style="color:var(--bad)">' + m.failed.length + ' baris perlu dibetulkan</b>' : '') + '.</p>';
+    if (m.failed.length) {
+      h += '<p class="muted">Betulkan data di Sheet sumber (atau lengkapkan pelajar dalam PELAJAR), kemudian tekan Segerak semula. Baris yang sudah diimport tidak akan berganda.</p><div class="tablewrap"><table><thead><tr><th>Baris sumber</th><th>No. matrik</th><th>Masalah</th></tr></thead><tbody>' +
+        m.failed.slice(0, 100).map(function (r) { return '<tr><td>' + r.row + '</td><td>' + esc(r.no_matrik) + '</td><td>' + esc(r.error) + (r.fields ? '<div class="muted">' + Object.keys(r.fields).map(function (x) { return esc(x) + ': ' + esc(r.fields[x]); }).join('<br>') + '</div>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    }
+    return h + '</div>';
+  }
+  function runMsync() {
+    var k = kpiById('CKAI5'); if (!k || (S.msync && S.msync.busy)) return;
+    S.msync = { busy: true, imported: 0, skipped: 0, students: 0, failed: [], total: 0 };
+    renderKpi();
+    (function next(row) {
+      call('api_syncMakerspace', S.token, row).then(function (r) {
+        var m = S.msync; m.imported += r.imported; m.skipped += r.skipped; m.students += r.students; m.failed = m.failed.concat(r.failed); m.total = r.total; m.row = Math.min(r.total, r.nextRow - 1);
+        if (!r.done) { var el = $('.panel[role="status"] p'); if (el) el.textContent = 'Menyegerak… ' + m.imported + ' diimport, ' + m.skipped + ' sedia ada · baris sumber diproses: ' + m.row + ' / ' + m.total + '.'; return next(r.nextRow); }
+        m.busy = false; S.list = null; renderKpi();
+      }).catch(function (e) { if (authFail(e)) return; S.msync = { busy: false, error: e.message }; renderKpi(); });
+    })(1);
+  }
+
+  function loadList(k) {
+    call('api_list', S.token, k.id, S.listFilters).then(function (r) {
+      S.list = r; if (S.view.name === 'kpi' && S.view.id === k.id && (S.view.tab || 'list') === 'list') renderList(k);
+    }).catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+  }
+
+  function fieldDef(k, key) { for (var i = 0; i < k.fields.length; i++) if (k.fields[i].key === key) return k.fields[i]; return null; }
+  function colLabel(k, key) { if (key === 'id') return 'ID'; var f = fieldDef(k, key); return f ? (f.short || f.label.replace(/\s*\([^)]*\)/g, '')) : key; }
+
+  function renderList(k) {
+    var el = $('#content');
+    var f = S.listFilters;
+    var statusField = k.statusField && fieldDef(k, k.statusField);
+    var h = (k.id === 'CKAI5' ? msyncHtml() : '') + '<div class="bar-top">' +
+      '<input type="text" id="q" placeholder="🔍 Cari…" value="' + esc(f.q || '') + '" aria-label="Cari" data-input="q">' +
+      (statusField ? '<select data-change="fstatus" aria-label="Tapis ' + esc(statusField.label) + '"><option value="">' + esc(statusField.label) + ': Semua</option>' +
+        statusField.options.map(function (o) { return '<option' + (f.status === o ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>' : '') +
+      (k.filter2 && fieldDef(k, k.filter2) ? '<select data-change="fstatus2" aria-label="Tapis ' + esc(fieldDef(k, k.filter2).label) + '"><option value="">' + esc(fieldDef(k, k.filter2).label) + ': Semua</option>' +
+        fieldDef(k, k.filter2).options.map(function (o) { return '<option' + (f.status2 === o ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>' : '') +
+      (isAdmin() && k.entry === 'faculty' ? '<select data-change="ffak" aria-label="Tapis fakulti"><option value="">Fakulti: Semua</option>' +
+        S.session.faculties.map(function (x) { return '<option value="' + esc(x.kod) + '"' + (f.fakulti === x.kod ? ' selected' : '') + '>' + esc(x.kod) + '</option>'; }).join('') + '</select>' : '') +
+      '<span class="grow"></span>' + (k.id === 'CKAI5' && isAdmin() ? '<button class="btn o" data-action="msync"' + (S.msync && S.msync.busy ? ' disabled' : '') + '>⬇ Segerak daripada Sheet permohonan</button> ' : '') + '<button class="btn" data-action="new">＋ Rekod baharu</button></div>';
+    if (!S.list) { el.innerHTML = h + '<p class="boot">Memuatkan…</p>'; loadList(k); return; }
+    h += '<div class="panel"><table class="lst"><thead><tr>' + k.listColumns.map(function (c) { return '<th>' + esc(colLabel(k, c)) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>';
+    if (!S.list.rows.length) h += '<tr><td class="empty" colspan="' + (k.listColumns.length + 1) + '">Tiada rekod.</td></tr>';
+    S.list.rows.forEach(function (r) {
+      h += '<tr>' + k.listColumns.map(function (c) { var t = listCell(k, r, c); var plain = String(r[c] === undefined ? '' : r[c]); return '<td' + (plain.length > 18 && t.indexOf('<') < 0 ? ' title="' + esc(plain) + '"' : '') + '>' + t + '</td>'; }).join('') +
+        '<td class="act"><button class="btn o sm" data-action="edit" data-id="' + esc(r.id) + '">Edit</button>' +
+        (S.list.canDelete ? ' <button class="btn d sm" data-action="del" data-id="' + esc(r.id) + '">Padam</button>' : '') + '</td></tr>';
+    });
+    el.innerHTML = h + '</tbody></table></div>';
+  }
+
+  // Sel senarai: pelajar = nama sahaja (no. KP tidak dipaparkan dalam jadual); fail = butang muat turun.
+  function listCell(k, r, c) {
+    var fd = fieldDef(k, c), v = r[c] === undefined ? '' : r[c];
+    if (fd && fd.type === 'url') {
+      var u = String(v).trim();
+      return /^https?:\/\//i.test(u) ? '<a class="tlnk" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">Buka pautan ↗</a>' : esc(u);
+    }
+    if (fd && fd.type === 'people' && fd.format === 'numbered') return esc(String(v).replace(/\r?\n/g, ' · '));
+    if (fd && fd.type === 'people') {
+      var ps = parseJson(v, []);
+      return esc(ps.map(function (p) { return p.nama; }).join(', '));
+    }
+    if (fd && fd.type === 'file') {
+      var f = parseJson(v, null);
+      return f && f.id ? '<button class="btn o sm" data-action="fdl" data-id="' + esc(r.id) + '" data-key="' + esc(c) + '" title="' + esc(f.name || 'PDF') + '">📎 PDF</button>' : '';
+    }
+    return esc(String(v).replace(/^'/, ''));
+  }
+  function parseJson(v, fb) { if (!v) return fb; if (typeof v !== 'string') return v; try { return JSON.parse(v); } catch (e) { return fb; } }
+
+  // ---- Pelajar berbilang (nama, no. matrik, no. KP)
+  function maskKp(v) { v = String(v || '').replace(/^'/, ''); return v && !isAdmin() && !/^•/.test(v) ? '••••••••' + v.slice(-4) : v; }
+  function peopleHtml(key) {
+    var arr = S.people[key] || [];
+    return arr.map(function (p, i) {
+      var id = key + ':' + i;
+      return '<div class="prow mo"><span class="pn">' + (i + 1) + '</span>' +
+        '<input type="text" data-pk="' + key + '" data-pi="' + i + '" data-pf="matrik" placeholder="No. matrik" maxlength="30" autocomplete="off" aria-label="No. matrik pelajar ' + (i + 1) + '" value="' + esc(p.matrik) + '">' +
+        '<span class="pname" data-pname="' + id + '" title="Nama (auto)">' + (p.nama ? '✓ ' + esc(p.nama) : '') + '</span>' +
+        '<span class="pcell" data-pkp="' + id + '" title="No. KP (auto)">' + esc(maskKp(p.nokp)) + '</span>' +
+        '<span class="pcell" data-pfk="' + id + '" title="Fakulti (auto)">' + esc(p.fakulti || '') + '</span>' +
+        (arr.length > 1 ? '<button type="button" class="btn d sm" data-action="pdel" data-key="' + key + '" data-i="' + i + '" aria-label="Buang pelajar ' + (i + 1) + '">✕</button>' : '<span></span>') + '</div>';
+    }).join('');
+  }
+  function syncPeople(key) {
+    var arr = S.people[key] || [];
+    $$('[data-pk="' + key + '"]').forEach(function (inp) {
+      var i = parseInt(inp.getAttribute('data-pi'), 10), f = inp.getAttribute('data-pf');
+      if (arr[i]) arr[i][f] = inp.value;
+    });
+    S.people[key] = arr;
+  }
+  function redrawPeople(key) { var box = $('[data-people="' + key + '"]'); if (box) box.innerHTML = peopleHtml(key); }
+
+  // ---- Fail PDF
+  function fileHtml(k, key) {
+    var f = S.files[key];
+    var saved = S.editing && S.editing[key] ? parseJson(S.editing[key], {}) : {};
+    return (f && f.id
+      ? '<div class="fileinfo">📎 <b>' + esc(f.name) + '</b>' + (saved.id && saved.id === f.id ? ' <button type="button" class="btn o sm" data-action="fdl" data-id="' + esc(S.editing.id) + '" data-key="' + key + '">Muat turun</button>' : ' <span class="hint">(belum disimpan)</span>') + '</div>'
+      : '<div class="hint">Belum ada fail.</div>') +
+      '<input type="file" id="f_' + key + '_file" accept="application/pdf,.pdf" data-change="fupload" data-key="' + key + '" aria-label="Pilih fail PDF">' +
+      '<div class="hint" id="fs_' + key + '">' + (f && f.id ? 'Pilih fail lain untuk menggantikan.' : 'Hanya PDF, maksimum 5 MB.') + '</div>';
+  }
+  function uploadPdf(k, key, file) {
+    var st = $('#fs_' + key);
+    var w = $('[data-field="' + key + '"]'); if (w) { w.classList.remove('invalid'); $('.err', w).textContent = ''; }
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf')) { showFieldErrors(oneErr(key, 'Fail mesti dalam format PDF.')); return; }
+    if (file.size > 5 * 1024 * 1024) { showFieldErrors(oneErr(key, 'Fail terlalu besar. Maksimum 5 MB.')); return; }
+    if (st) st.textContent = 'Memuat naik…';
+    var rd = new FileReader();
+    rd.onerror = function () { showFieldErrors(oneErr(key, 'Fail tidak dapat dibaca.')); };
+    rd.onload = function () {
+      var data = String(rd.result).split(',')[1] || '';
+      call('api_uploadFile', S.token, k.id, key, { name: file.name, data: data }).then(function (r) {
+        S.files[key] = { id: r.id, name: r.name };
+        var box = $('[data-filebox="' + key + '"]'); if (box) box.innerHTML = fileHtml(k, key);
+        toast('Fail ' + r.name + ' dimuat naik. Tekan Simpan untuk melengkapkan rekod.');
+      }).catch(function (e) { if (authFail(e)) return; if (st) st.textContent = ''; showFieldErrors(oneErr(key, e.message)); });
+    };
+    rd.readAsDataURL(file);
+  }
+  function oneErr(key, msg) { var o = {}; o[key] = msg; return o; }
+  function downloadPdf(k, recId, key) {
+    call('api_downloadFile', S.token, k.id, recId, key).then(function (r) {
+      var bin = atob(r.base64), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      var a = document.createElement('a'); a.href = url; a.download = r.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 15000);
+    }).catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+  }
+
+  function inputFor(k, fd, val) {
+    var id = 'f_' + fd.key, v = val === undefined || val === null ? '' : String(val).replace(/^'/, '');
+    var req = fd.required ? ' required' : '';
+    var user = S.session.user;
+    if (fd.derived) return '<input type="text" id="' + id + '" value="' + esc(fd.autoShow === 'no_kp' ? maskKp(v) : v) + '" readonly tabindex="-1" class="ro" placeholder="Diisi automatik daripada PELAJAR">';
+    switch (fd.type) {
+      case 'select':
+        return '<select id="' + id + '" name="' + fd.key + '"><option value="">— pilih —</option>' +
+          fd.options.map(function (o) { return '<option' + (v === o ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+      case 'yesno':
+        return '<select id="' + id + '" name="' + fd.key + '"><option value="">— pilih —</option>' +
+          ['Ya', 'Tidak'].map(function (o) { return '<option' + (v === o ? ' selected' : '') + '>' + o + '</option>'; }).join('') + '</select>';
+      case 'faculty':
+        var locked = fd.key === 'fakulti' && !isAdmin() && k.entry === 'faculty';
+        var list = S.session.faculties.filter(function (x) { return fd.key !== 'fakulti' || !k.facultyWhitelist || k.facultyWhitelist.indexOf(x.kod) >= 0; });
+        if (locked) v = user.fakulti;
+        return '<select id="' + id + '" name="' + fd.key + '"' + (locked ? ' disabled' : '') + '><option value="">— pilih —</option>' +
+          list.map(function (x) { return '<option value="' + esc(x.kod) + '"' + (v === x.kod ? ' selected' : '') + '>' + esc(x.kod + ' · ' + x.nama) + '</option>'; }).join('') +
+          (fd.extra || []).map(function (x) { return '<option value="' + esc(x) + '"' + (v === x ? ' selected' : '') + '>' + esc(x.charAt(0) + x.slice(1).toLowerCase()) + '</option>'; }).join('') + '</select>' +
+          (locked ? '<div class="hint">Dikunci mengikut fakulti anda.</div>' : '');
+      case 'textarea':
+        return '<textarea id="' + id + '" name="' + fd.key + '" maxlength="2000">' + esc(v) + '</textarea>';
+      case 'number':
+        return '<input type="number" step="any" id="' + id + '" name="' + fd.key + '" value="' + esc(v) + '"' +
+          (fd.min !== undefined ? ' min="' + fd.min + '"' : '') + (fd.max !== undefined ? ' max="' + fd.max + '"' : '') + '>';
+      case 'people':
+        return '<div class="people" data-people="' + fd.key + '" id="f_' + fd.key + '">' + peopleHtml(fd.key) + '</div>' +
+          '<button type="button" class="btn o sm" data-action="padd" data-key="' + fd.key + '">＋ Tambah ' + esc(fd.noun || 'pelajar') + '</button>' +
+          '<div class="hint">Satu baris bagi setiap ' + esc(fd.noun || 'pelajar') + (fd.max ? ' (maksimum ' + fd.max + ')' : '') + '. Masukkan no. matrik sahaja; nama diambil daripada data PELAJAR.</div>';
+      case 'file':
+        return '<div class="filebox" data-filebox="' + fd.key + '" id="f_' + fd.key + '">' + fileHtml(k, fd.key) + '</div>';
+      case 'month':
+        return '<input type="month" id="' + id + '" name="' + fd.key + '" value="' + esc(v) + '" placeholder="YYYY-MM">';
+      case 'time':
+        return '<input type="time" id="' + id + '" name="' + fd.key + '" value="' + esc(v) + '">';
+      case 'date':
+        return '<input type="date" id="' + id + '" name="' + fd.key + '" value="' + esc(v) + '">';
+      case 'email':
+        return '<input type="email" id="' + id + '" name="' + fd.key + '" value="' + esc(v) + '" maxlength="254">';
+      case 'url':
+        return '<input type="url" id="' + id + '" name="' + fd.key + '" value="' + esc(v) + '" placeholder="https://" maxlength="500">';
+      default:
+        return '<input type="text" id="' + id + '" name="' + fd.key + '" value="' + esc(v) + '" maxlength="300">';
+    }
+  }
+
+  // Teks bernombor "1. NAMA (NO. MATRIK)" setiap baris -> senarai {nama, matrik}
+  function parseNumbered(v) {
+    return String(v || '').split(/\r?\n/).map(function (ln) {
+      var m = /^\s*\d+\.\s*(.*?)\s*\(([^()]+)\)\s*$/.exec(ln);
+      return m ? { nama: m[1], matrik: m[2] } : null;
+    }).filter(Boolean);
+  }
+  // Susunan borang: KPI berdata pelajar meletakkan No. matrik di atas, diikuti medan auto (nama, no. KP, fakulti) daripada PELAJAR.
+  function formFields(k) {
+    if (!k.student) return k.fields;
+    var fs = k.fields.map(function (f) { return Object.assign({}, f); });
+    var mk = fs.filter(function (f) { return f.key === k.student.matrik; })[0];
+    if (!mk) return k.fields;
+    var first = fs[0] !== mk ? fs[0] : null;
+    if (!mk.sec && first && first.sec) { mk.sec = first.sec; first.sec = undefined; }
+    var rest = fs.filter(function (f) { return f !== mk; }), order = ['nama_pelajar', 'no_kp', 'fakulti'];
+    var autos = rest.filter(function (f) { return f.derived && f.autoShow; }).sort(function (a, b) { return order.indexOf(a.autoShow) - order.indexOf(b.autoShow); });
+    var others = rest.filter(function (f) { return autos.indexOf(f) < 0; });
+    return [mk].concat(autos, others);
+  }
+  function renderForm(k) {
+    var rec = S.editing || {};
+    S.people = {}; S.files = {}; S.peopleKp = {};
+    k.fields.forEach(function (fd) {
+      if (fd.type === 'people') { S.peopleKp[fd.key] = fd.kp !== false; var ps = fd.format === 'numbered' ? parseNumbered(rec[fd.key]) : parseJson(rec[fd.key], []); S.people[fd.key] = ps.length ? ps.map(function (p) { return { nama: p.nama || '', matrik: p.matrik || '', nokp: p.nokp || '', fakulti: p.fakulti || '' }; }) : [{ nama: '', matrik: '', nokp: '', fakulti: '' }]; }
+      if (fd.type === 'file') { var f = parseJson(rec[fd.key], null); S.files[fd.key] = f && f.id ? f : null; }
+    });
+    var h = '<form class="form" id="kform" novalidate><div class="fgrid">';
+    formFields(k).forEach(function (fd) {
+      if (fd.hidden || (fd.derived && !fd.autoShow)) return;
+      if (fd.sec) h += '<div class="fsec">' + esc(fd.sec) + '</div>';
+      h += '<div class="' + (fd.full ? 'full' : '') + '" data-field="' + fd.key + '"><label for="f_' + fd.key + '">' + esc(fd.label) + (fd.required ? ' <span class="req" aria-hidden="true">*</span>' : '') + '</label>' +
+        inputFor(k, fd, (!S.editing && rec[fd.key] === undefined && fd.def !== undefined) ? fd.def : rec[fd.key]) +
+        (k.student && fd.key === k.student.matrik ? '<div class="stu" id="stu_status" aria-live="polite">' + (S.editing && rec[k.student.nama] ? '✓ ' + esc(rec[k.student.nama]) : '') + '</div>' : '') +
+        (fd.hint ? '<div class="hint">' + esc(fd.hint) + '</div>' : '') + '<div class="err" role="alert"></div></div>';
+    });
+    h += '</div><div class="acts"><button class="btn" type="submit" id="savebtn">Simpan</button>' +
+      '<button class="btn o" type="button" data-action="cancelform">Batal</button></div></form>';
+    $('#content').innerHTML = h;
+    initAutofill(k);
+  }
+
+  // Isi automatik medan (contoh: no. chargeline) apabila medan sumber (contoh: nama tabung) dipilih; medan dikunci jika ada padanan.
+  function applyAutofill(k, srcKey) {
+    k.fields.forEach(function (fd) {
+      if (fd.autoFrom !== srcKey || !fd.autoMap) return;
+      var src = document.getElementById('f_' + srcKey), el = document.getElementById('f_' + fd.key);
+      if (!src || !el) return;
+      var mapped = fd.autoMap[src.value];
+      if (mapped) { el.value = mapped; el.readOnly = true; el.classList.add('ro'); }
+      else { if (el.readOnly) el.value = ''; el.readOnly = false; el.classList.remove('ro'); }
+    });
+  }
+  function initAutofill(k) { k.fields.forEach(function (fd) { if (fd.autoFrom) applyAutofill(k, fd.autoFrom); }); }
+
+  function collectForm(k) {
+    var rec = {};
+    if (S.editing) rec.id = S.editing.id;
+    k.fields.forEach(function (fd) {
+      if (fd.type === 'people') { syncPeople(fd.key); rec[fd.key] = (S.people[fd.key] || []).filter(function (p) { return p.matrik; }).map(function (p) { return { matrik: p.matrik }; }); return; }
+      if (fd.type === 'file') { rec[fd.key] = S.files[fd.key] || ''; return; }
+      if (fd.derived) return;   // diisi automatik oleh pelayan daripada PELAJAR
+      var el = document.getElementById('f_' + fd.key);
+      if (!el) return;
+      if (el.disabled && fd.key === 'fakulti') { rec[fd.key] = S.session.user.fakulti; return; }
+      rec[fd.key] = el.value;
+    });
+    return rec;
+  }
+  function showFieldErrors(fields) {
+    $$('[data-field]').forEach(function (w) { w.classList.remove('invalid'); $('.err', w).textContent = ''; });
+    var first = null;
+    Object.keys(fields || {}).forEach(function (key) {
+      var w = $('[data-field="' + key + '"]');
+      if (!w) return;
+      w.classList.add('invalid'); $('.err', w).textContent = fields[key];
+      if (!first) first = w;
+    });
+    if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  // ------------------------------------------------------------------ data asas pelajar (tab PELAJAR)
+  S.stu = S.stu || {};
+  function stuKey(m) { return String(m || '').replace(/\s+/g, '').toUpperCase(); }
+  function lookupStu(k, matriks) {
+    return call('api_lookupStudents', S.token, k.id, matriks).then(function (r) { r.forEach(function (v) { S.stu[stuKey(v.no_matrik)] = v; }); return r; });
+  }
+  function fillDerived(k, v) {
+    k.fields.forEach(function (fd) {
+      if (!fd.derived || !fd.autoShow) return;
+      var el = document.getElementById('f_' + fd.key); if (!el) return;
+      el.value = !v || !v.found ? '' : fd.autoShow === 'nama_pelajar' ? v.nama_pelajar : fd.autoShow === 'fakulti' ? (v.fakulti || '') : (v.no_kp || v.kp_mask || '');
+    });
+  }
+  function setStuStatus(v) {
+    var el = $('#stu_status'); if (!el) return;
+    el.className = 'stu' + (v && v.complete ? ' ok' : v ? ' warn' : '');
+    el.textContent = !v ? '' : v.complete ? '✓ ' + v.nama_pelajar + (v.fakulti ? ' · ' + v.fakulti : '') : v.found ? '⚠ Maklumat pelajar belum lengkap' : '⚠ Pelajar belum ada dalam data PELAJAR';
+  }
+  function onMatrikChange(k, input) {
+    var m = stuKey(input.value); if (!m) { setStuStatus(null); fillDerived(k, null); return; }
+    lookupStu(k, [m]).then(function (r) {
+      var v = r[0];
+      if (input.getAttribute('data-pk')) {   // senarai pelajar
+        var key = input.getAttribute('data-pk'), i = parseInt(input.getAttribute('data-pi'), 10);
+        var pp = S.people[key] && S.people[key][i];
+        if (pp) { pp.nama = v.complete ? v.nama_pelajar : ''; pp.nokp = v.complete ? (v.no_kp || v.kp_mask || '') : ''; pp.fakulti = v.complete ? (v.fakulti || '') : ''; }
+        var id = key + ':' + i, sp = $('[data-pname="' + id + '"]'), kc = $('[data-pkp="' + id + '"]'), fc = $('[data-pfk="' + id + '"]');
+        if (sp) sp.textContent = v.complete ? '✓ ' + v.nama_pelajar : '';
+        if (kc) kc.textContent = pp ? pp.nokp : ''; if (fc) fc.textContent = pp ? pp.fakulti : '';
+      } else { setStuStatus(v); fillDerived(k, v); }
+      if (!v.complete) openStudentModal([v], function () { onMatrikChange(k, input); });
+    }).catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+  }
+  function openStudentModal(items, onDone) {
+    S.modal = { items: items, onDone: onDone, errors: {} };
+    drawStudentModal();
+  }
+  function drawStudentModal() {
+    var m = S.modal, host = $('#modal');
+    if (!host) { host = document.createElement('div'); host.id = 'modal'; document.body.appendChild(host); }
+    if (!m) { host.innerHTML = ''; return; }
+    var facs = S.session.faculties;
+    host.innerHTML = '<div class="mdl" role="dialog" aria-modal="true" aria-labelledby="mdlt"><div class="mdlb"><h3 id="mdlt">Lengkapkan maklumat pelajar</h3>' +
+      '<p class="muted">Pelajar berikut belum ada atau belum lengkap dalam data asas PELAJAR. Lengkapkan sekali sahaja; maklumat disimpan dalam tab PELAJAR dan digunakan oleh semua KPI.</p>' +
+      '<form id="stuform" novalidate>' + m.items.map(function (v, i) {
+        var er = m.errors[v.no_matrik] || {};
+        function f(key, label, type, val, ph) {
+          return '<div data-field="s' + i + key + '" class="' + (er[key] ? 'invalid' : '') + '"><label for="sm_' + i + '_' + key + '">' + label + '</label><input type="' + type + '" id="sm_' + i + '_' + key + '" data-si="' + i + '" data-sf="' + key + '" value="' + esc(val || '') + '"' + (ph ? ' placeholder="' + ph + '"' : '') + ' maxlength="120" autocomplete="off"><div class="err" role="alert">' + esc(er[key] || '') + '</div></div>';
+        }
+        return '<fieldset class="stuset"><legend>' + esc(v.no_matrik) + '</legend><div class="fgrid">' +
+          f('nama_pelajar', 'Nama pelajar <span class="req">*</span>', 'text', v.nama_pelajar) +
+          f('no_kp', 'No. KP / pasport <span class="req">*</span>', 'text', v.no_kp, v.found && !v.no_kp && S.session.user.peranan !== 'Admin' ? '' : '') +
+          f('emel', 'E-mel' + (v.gaps && v.gaps.indexOf('emel') >= 0 ? ' <span class="req">*</span>' : ''), 'email', v.emel) +
+          f('telefon', 'No. telefon' + (v.gaps && v.gaps.indexOf('telefon') >= 0 ? ' <span class="req">*</span>' : ''), 'text', v.telefon) +
+          '<div data-field="s' + i + 'bidang_pengajian" class="' + (er.bidang_pengajian ? 'invalid' : '') + '"><label for="sm_' + i + '_bidang_pengajian">Bidang pengajian</label><select id="sm_' + i + '_bidang_pengajian" data-si="' + i + '" data-sf="bidang_pengajian"><option value="">Pilih…</option>' + (S.session.bidang_pengajian || []).map(function (x) { return '<option' + (v.bidang_pengajian === x ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select><div class="err" role="alert">' + esc(er.bidang_pengajian || '') + '</div></div>' +
+          '<div data-field="s' + i + 'jantina" class="' + (er.jantina ? 'invalid' : '') + '"><label for="sm_' + i + '_jantina">Jantina</label><select id="sm_' + i + '_jantina" data-si="' + i + '" data-sf="jantina"><option value="">Pilih…</option>' + ['Lelaki', 'Perempuan'].map(function (x) { return '<option' + (v.jantina === x ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select><div class="err" role="alert">' + esc(er.jantina || '') + '</div></div>' +
+          '<div data-field="s' + i + 'bangsa"><label for="sm_' + i + '_bangsa">Bangsa</label><select id="sm_' + i + '_bangsa" data-si="' + i + '" data-sf="bangsa"><option value="">Pilih…</option>' + (S.session.bangsa || []).map(function (x) { return '<option' + (v.bangsa === x ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select><div class="err" role="alert"></div></div>' +
+          '<div data-field="s' + i + 'fakulti" class="' + (er.fakulti ? 'invalid' : '') + '"><label for="sm_' + i + '_fakulti">Fakulti <span class="req">*</span></label><select id="sm_' + i + '_fakulti" data-si="' + i + '" data-sf="fakulti"><option value="">Pilih…</option>' +
+          facs.map(function (x) { return '<option value="' + esc(x.kod) + '"' + (v.fakulti === x.kod ? ' selected' : '') + '>' + esc(x.kod + ' · ' + x.nama) + '</option>'; }).join('') + '</select><div class="err" role="alert">' + esc(er.fakulti || '') + '</div></div>' +
+          '</div></fieldset>';
+      }).join('') + '<div class="acts"><button class="btn" type="submit" id="stusave">Simpan ke PELAJAR</button><button class="btn o" type="button" data-action="stucancel">Batal</button></div></form></div></div>';
+    var first = host.querySelector('input,select'); if (first) first.focus();
+  }
+  function saveStudentModal() {
+    var m = S.modal; if (!m || m.busy) return;
+    var list = m.items.map(function (v, i) {
+      var o = { no_matrik: v.no_matrik };
+      $$('#stuform [data-si="' + i + '"]').forEach(function (el) { o[el.getAttribute('data-sf')] = el.value; });
+      return o;
+    });
+    m.busy = true; var b = $('#stusave'); if (b) { b.disabled = true; b.textContent = 'Menyimpan…'; }
+    call('api_saveStudents', S.token, list).then(function (r) {
+      var bad = {}, badItems = [];
+      r.results.forEach(function (x, i) { if (!x.ok) { bad[x.no_matrik] = x.fields || {}; badItems.push(Object.assign({}, m.items[i], list[i])); } });
+      m.busy = false;
+      if (badItems.length) { m.items = badItems; m.errors = bad; drawStudentModal(); return; }
+      var done = m.onDone; S.modal = null; drawStudentModal(); toast('Maklumat pelajar disimpan dalam PELAJAR.');
+      list.forEach(function (o) { delete S.stu[stuKey(o.no_matrik)]; });
+      if (done) done();
+    }).catch(function (e) { m.busy = false; if (!authFail(e)) { toast(e.message, true); drawStudentModal(); } });
+  }
+
+  function submitForm() {
+    var k = kpiById(S.view.id); if (!k || S.busy) return;
+    var btn = $('#savebtn'); S.busy = true; btn.disabled = true; btn.textContent = 'Menyimpan…';
+    call('api_save', S.token, k.id, collectForm(k)).then(function (r) {
+      toast('Rekod ' + r.id + ' disimpan.');
+      S.editing = null; S.list = null; S.view = { name: 'kpi', id: k.id, tab: 'list' };
+      render();
+    }).catch(function (e) {
+      if (authFail(e)) return;
+      if (e.missing && e.missing.length) { openStudentModal(e.missing, submitForm); return; }
+      showFieldErrors(e.fields); toast(e.message, true);
+    }).then(function () { S.busy = false; var b = $('#savebtn'); if (b) { b.disabled = false; b.textContent = 'Simpan'; } });
+  }
+
+  // ------------------------------------------------------------------ Admin: pengguna
+  function renderUsers() {
+    var el = $('#content');
+    if (!S.users) {
+      el.innerHTML = '<p class="boot">Memuatkan…</p>';
+      call('api_listUsers', S.token).then(function (r) { S.users = r; if (S.view.name === 'users') renderUsers(); })
+        .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+      return;
+    }
+    var facs = S.session.faculties;
+    var h = '<div class="form" style="margin-bottom:16px"><form id="uform" novalidate><div class="fgrid">' +
+      '<div data-field="emel"><label for="u_emel">E-mel <span class="req">*</span></label><input type="email" id="u_emel" maxlength="254"><div class="err" role="alert"></div></div>' +
+      '<div data-field="nama"><label for="u_nama">Nama</label><input type="text" id="u_nama" maxlength="120"><div class="err" role="alert"></div></div>' +
+      '<div data-field="peranan"><label for="u_peranan">Peranan</label><select id="u_peranan"><option>PIC</option><option>Admin</option></select><div class="err" role="alert"></div></div>' +
+      '<div data-field="fakulti"><label for="u_fakulti">Fakulti</label><select id="u_fakulti">' +
+      facs.map(function (x) { return '<option value="' + esc(x.kod) + '">' + esc(x.kod + ' · ' + x.nama) + '</option>'; }).join('') + '</select><div class="err" role="alert"></div></div>' +
+      '<div data-field="kpi_akses"><label for="u_akses">Akses KPI (PIC)</label><input type="text" id="u_akses" placeholder="KAI1,KAI4,KAI6"><div class="hint">KPI fakulti sahaja: KAI1, KAI4, KAI6. Admin mengakses semua.</div><div class="err" role="alert"></div></div>' +
+      '<div data-field="aktif"><label for="u_aktif">Aktif</label><select id="u_aktif"><option>Ya</option><option>Tidak</option></select><div class="err" role="alert"></div></div>' +
+      '</div><div class="acts"><button class="btn" type="submit">Simpan pengguna</button><button class="btn o" type="button" data-action="uclear">Kosongkan</button></div></form></div>';
+    h += '<div class="panel"><table><thead><tr><th>E-mel</th><th>Nama</th><th>Peranan</th><th>Fakulti</th><th>Akses KPI</th><th>Aktif</th><th></th></tr></thead><tbody>';
+    S.users.forEach(function (u) {
+      h += '<tr><td>' + esc(u.emel) + '</td><td>' + esc(u.nama) + '</td><td>' + esc(u.peranan) + '</td><td>' + esc(u.fakulti) + '</td><td>' + esc(u.kpi_akses) + '</td><td>' + esc(u.aktif) + '</td>' +
+        '<td class="act"><button class="btn o sm" data-action="uedit" data-email="' + esc(u.emel) + '">Edit</button> ' +
+        '<button class="btn d sm" data-action="udel" data-email="' + esc(u.emel) + '">Padam</button></td></tr>';
+    });
+    el.innerHTML = h + '</tbody></table></div>';
+  }
+
+  // ------------------------------------------------------------------ Admin: sasaran
+  function renderTargets() {
+    var el = $('#content');
+    if (!S.targets) {
+      el.innerHTML = '<p class="boot">Memuatkan…</p>';
+      call('api_listTargets', S.token).then(function (r) { S.targets = r; if (S.view.name === 'targets') renderTargets(); })
+        .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+      return;
+    }
+    var h = '<div class="pub">Semua sasaran ialah <b>minimum</b> (boleh dilebihi), kecuali KAI 2 dan DKAI 1 yang berakhir pada 100%, dan CKAI 10 (peratus penggunaan peruntukan tabung; makin hampir 100% makin cekap). Sasaran suku tahun (Q1-Q4) bersifat kumulatif dan boleh dikosongkan (N/A).</div>' +
+      '<div class="panel"><table><thead><tr><th>KPI</th><th>Tahun</th><th>Sasaran</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Bajet (RM)</th><th>Catatan</th><th></th></tr></thead><tbody>';
+    S.targets.forEach(function (t, i) {
+      function inp(k, w) { return '<input type="number" step="any" min="0" style="width:' + w + 'px" data-t="' + i + '" data-k="' + k + '" value="' + esc(t[k]) + '" aria-label="' + k + ' ' + esc(t.kpi) + ' ' + esc(t.tahun) + '">'; }
+      h += '<tr><td>' + esc(t.kpi) + '</td><td>' + esc(t.tahun) + '</td><td>' + inp('sasaran', 70) + '</td>' +
+        '<td>' + inp('q1', 60) + '</td><td>' + inp('q2', 60) + '</td><td>' + inp('q3', 60) + '</td><td>' + inp('q4', 60) + '</td>' +
+        '<td>' + inp('bajet_rm', 90) + '</td><td><input type="text" style="min-width:160px" data-t="' + i + '" data-k="catatan" value="' + esc(String(t.catatan || '').replace(/^\'/, '')) + '" aria-label="Catatan"></td>' +
+        '<td class="act"><button class="btn sm" data-action="tsave" data-i="' + i + '">Simpan</button></td></tr>';
+    });
+    el.innerHTML = h + '</tbody></table></div>';
+  }
+
+  // ------------------------------------------------------------------ Admin: audit
+  function renderAudit() {
+    var el = $('#content');
+    if (!S.audit) {
+      el.innerHTML = '<p class="boot">Memuatkan…</p>';
+      call('api_listAudit', S.token, 200).then(function (r) { S.audit = r; if (S.view.name === 'audit') renderAudit(); })
+        .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+      return;
+    }
+    var h = '<div class="panel"><table><thead><tr><th>Masa</th><th>Pengguna</th><th>Tindakan</th><th>KPI</th><th>Rekod</th><th>Ringkasan</th></tr></thead><tbody>';
+    if (!S.audit.length) h += '<tr><td class="empty" colspan="6">Tiada log.</td></tr>';
+    S.audit.forEach(function (a) {
+      h += '<tr><td>' + esc(String(a.masa).replace('T', ' ')) + '</td><td>' + esc(a.emel) + '</td><td>' + esc(a.tindakan) + '</td><td>' + esc(a.kpi) + '</td><td>' + esc(a.rekod_id) + '</td><td>' + esc(String(a.ringkasan).replace(/^'/, '')) + '</td></tr>';
+    });
+    el.innerHTML = h + '</tbody></table></div>';
+  }
+
+  // ------------------------------------------------------------------ infografik (awam)
+  var MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+  var COL = { m: '#5c0f2a', gold: '#e9b949', kpt: '#b8860b', teal: '#1f6f6b', track: '#efe6e9', mut: '#6a5a5f' };
+  var gradN = 0;
+  function monthShort(l) { var m = /^\d{4}-(\d{2})/.exec(String(l)); return m ? MS[parseInt(m[1], 10) - 1] : String(l); }
+  function isMeet(c) { return c.status === 'Capai sasaran' || c.status === 'Melebihi sasaran' || c.status === 'Selesai'; }
+  function pctCap(c) { return c.pct === null || c.pct === undefined ? null : Math.min(100, c.pct); }
+
+  // Cincin kemajuan; o.tick = penanda sasaran (0-100)
+  function ringSvg(pct, o) {
+    var size = o.size || 120, cx = size / 2, r = size / 2 - 10, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, pct || 0));
+    var h = '<svg class="ring" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + esc(o.label + ': ' + o.text) + '">' +
+      '<circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="' + COL.track + '" stroke-width="9"/>' +
+      '<circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="' + (o.color || COL.m) + '" stroke-width="9" stroke-linecap="round" stroke-dasharray="' + (c * p / 100).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cx + ')"><title>' + esc(o.label + ': ' + o.text) + '</title></circle>';
+    if (o.tick) {
+      var a = (o.tick / 100 * 360 - 90) * Math.PI / 180;
+      h += '<line x1="' + (cx + (r - 8) * Math.cos(a)).toFixed(1) + '" y1="' + (cx + (r - 8) * Math.sin(a)).toFixed(1) + '" x2="' + (cx + (r + 8) * Math.cos(a)).toFixed(1) + '" y2="' + (cx + (r + 8) * Math.sin(a)).toFixed(1) + '" stroke="' + COL.gold + '" stroke-width="3" stroke-linecap="round"><title>Sasaran ' + o.tick + '%</title></line>';
+    }
+    return h + '<text x="' + cx + '" y="' + (cx + size * 0.07) + '" text-anchor="middle" class="rv" style="font-size:' + Math.round(size * 0.22 * (String(o.text).length > 5 ? Math.max(0.62, 5 / String(o.text).length) : 1)) + 'px">' + esc(o.text) + '</text></svg>';
+  }
+  function ringTile(pct, o) {
+    return '<div class="rtile">' + ringSvg(pct, o) + '<b>' + esc(o.label) + '</b>' + (o.en ? '<i>(' + esc(o.en) + ')</i>' : '') + (o.sub ? '<small>' + esc(o.sub) + '</small>' : '') + '</div>';
+  }
+
+  // Carta bar menegak (satu paksi); item = {label, value}
+  function barsSvg(items, o) {
+    o = o || {};
+    var W = 320, H = 140, pl = 6, pb = 20, pt = 16, n = items.length, max = Math.max.apply(null, items.map(function (i) { return i.value; }).concat([1]));
+    var slot = (W - pl * 2) / n, bw = Math.min(24, slot - 6), h = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label || 'Carta bar') + '">' +
+      '<line x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pl) + '" y2="' + (H - pb) + '" stroke="#d9cdd1" stroke-width="1"/>';
+    var peak = items.reduce(function (m, i, k) { return i.value > items[m].value ? k : m; }, 0);
+    items.forEach(function (it, k) {
+      var bh = Math.max(2, (H - pb - pt) * it.value / max), x = pl + slot * k + (slot - bw) / 2, y = H - pb - bh, rr = Math.min(4, bw / 2);
+      h += '<path d="M' + x + ' ' + (H - pb) + 'V' + (y + rr) + 'a' + rr + ' ' + rr + ' 0 0 1 ' + rr + ' -' + rr + 'h' + (bw - 2 * rr) + 'a' + rr + ' ' + rr + ' 0 0 1 ' + rr + ' ' + rr + 'V' + (H - pb) + 'z" fill="' + (k === peak ? COL.m : '#a0577a') + '"><title>' + esc(it.label + ': ' + (o.fmt ? o.fmt(it.value) : fmtNum(it.value))) + '</title></path>' +
+        '<text x="' + (x + bw / 2) + '" y="' + (H - 6) + '" text-anchor="middle" class="ax">' + esc(monthShort(it.label)) + '</text>';
+      if (k === peak) h += '<text x="' + (x + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" class="av">' + esc(o.fmt ? o.fmt(it.value) : fmtNum(it.value)) + '</text>';
+    });
+    return h + '</svg>';
+  }
+
+  // Carta kawasan/garis (satu paksi); o.target = garis sasaran melintang
+  function areaSvg(items, o) {
+    o = o || {};
+    var W = 320, H = 140, pl = 14, pr = 14, pb = 20, pt = 18, n = items.length;
+    var max = Math.max.apply(null, items.map(function (i) { return i.value; }).concat([o.target || 0, 1])) * 1.1;
+    function X(k) { return n === 1 ? W / 2 : pl + (W - pl - pr) * k / (n - 1); }
+    function Y(v) { return H - pb - (H - pb - pt) * v / max; }
+    var id = 'ag' + (++gradN), pts = items.map(function (it, k) { return X(k).toFixed(1) + ' ' + Y(it.value).toFixed(1); });
+    var h = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label || 'Carta') + '"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + COL.m + '" stop-opacity=".28"/><stop offset="1" stop-color="' + COL.m + '" stop-opacity="0"/></linearGradient></defs>' +
+      '<line x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pr) + '" y2="' + (H - pb) + '" stroke="#d9cdd1"/>';
+    if (o.target) h += '<line x1="' + pl + '" y1="' + Y(o.target).toFixed(1) + '" x2="' + (W - pr) + '" y2="' + Y(o.target).toFixed(1) + '" stroke="' + COL.gold + '" stroke-width="2" stroke-dasharray="5 4"><title>' + esc(o.targetLabel || 'Sasaran') + '</title></line>' +
+      '<text x="' + (W - pr) + '" y="' + (Y(o.target) - 5).toFixed(1) + '" text-anchor="end" class="av">' + esc(o.targetLabel || 'Sasaran') + '</text>';
+    if (n > 1) h += '<path d="M' + pts.join('L') + 'L' + X(n - 1).toFixed(1) + ' ' + (H - pb) + 'L' + X(0).toFixed(1) + ' ' + (H - pb) + 'z" fill="url(#' + id + ')"/>';
+    h += '<path d="M' + pts.join('L') + '" fill="none" stroke="' + COL.m + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    items.forEach(function (it, k) {
+      h += '<circle cx="' + X(k).toFixed(1) + '" cy="' + Y(it.value).toFixed(1) + '" r="4" fill="' + COL.m + '" stroke="#fff" stroke-width="2"><title>' + esc(it.label + ': ' + (o.fmt ? o.fmt(it.value) : fmtNum(it.value))) + '</title></circle>' +
+        '<text x="' + X(k).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="ax">' + esc(o.xlabel ? o.xlabel(it.label) : monthShort(it.label)) + '</text>';
+    });
+    if (o.valueLabels) items.forEach(function (it, k) { h += '<text x="' + X(k).toFixed(1) + '" y="' + (Y(it.value) - 8).toFixed(1) + '" text-anchor="middle" class="av">' + esc(o.fmt ? o.fmt(it.value) : fmtNum(it.value)) + '</text>'; });
+    return h + '</svg>';
+  }
+
+  function hbarsHtml(items, fmt, limit) {
+    var arr = items.slice(0, limit || 8), max = Math.max.apply(null, arr.map(function (i) { return i.value; }).concat([1]));
+    return arr.map(function (i) {
+      return '<div class="bi"><span class="l" title="' + esc(i.label) + '">' + esc(i.label) + '</span><span class="mini"><i style="width:' + Math.min(100, i.value / max * 100).toFixed(0) + '%"></i></span><span class="n">' + esc(fmt ? fmt(i.value) : fmtNum(i.value)) + '</span></div>';
+    }).join('');
+  }
+  function bdOf(c, re) { var b = (c && c.breakdown || []).filter(function (x) { return re.test(x.title) && x.items.length; })[0]; return b ? b.items : null; }
+  function panel(title, body, cls) { return '<section class="igp ' + (cls || '') + '"><h3 class="igt">' + esc(title) + '</h3>' + body + '</section>'; }
+
+  function loadInfo(year) {
+    $('#content').innerHTML = '<p class="boot">Memuatkan infografik…</p>';
+    var y = year || S.year || '';
+    (S.trend ? call('api_dashboard', y).then(function (d) { return { dash: d, trend: S.trend }; }) : call('api_infografik', y)).then(function (r) {
+      S.dash = r.dash; S.year = r.dash.year; S.trend = r.trend;
+      if (S.view.name === 'infografik') renderInfo();
+    }).catch(function (e) { $('#content').innerHTML = '<p class="boot">' + esc(e.message) + '</p>'; });
+  }
+
+  // % Penggunaan Tabung: satu cincin bagi setiap tabung; nilai % di tengah, kod tabung dan RM dibelanjakan di bawah (peruntukan tidak didedahkan kepada awam).
+  var TB_COLORS = ['#5c0f2a', '#1f6f6b', '#a0577a', '#b8860b', '#6a8caf', '#8a1c46', '#3b78d8', '#7a6a2f'];
+  function tabungRingsHtml(tb, size) {
+    var pct = bdOf(tb, /% Penggunaan Tabung/i), rm = bdOf(tb, /Perbelanjaan \(RM\)/i) || [], al = bdOf(tb, /Peruntukan \(RM\)/i) || [], rmBy = {}, alBy = {};
+    rm.forEach(function (x) { rmBy[x.label] = x.value; }); al.forEach(function (x) { alBy[x.label] = x.value; });
+    function rmS(n) { n = Number(n); return 'RM' + (n % 1 === 0 ? n.toLocaleString('en-MY') : n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })); }
+    if (!pct) return '';
+    return '<div class="tbrow">' + pct.map(function (it, i) {
+      return '<div class="tbd">' + ringSvg(Math.min(100, it.value), { size: size || 130, label: 'Penggunaan tabung ' + it.label, text: fmtNum(it.value) + '%', color: TB_COLORS[i % TB_COLORS.length] }) +
+        '<b>' + esc(it.label) + '</b>' + (rmBy[it.label] !== undefined ? '<span>' + esc(rmS(rmBy[it.label])) + (alBy[it.label] !== undefined ? ' / ' + esc(rmS(alBy[it.label])) : '') + '</span>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+
+  // Penggunaan Makerspace: bilangan pengguna (bil_peserta). msUsersHtml = nombor besar + tempahan; msEquipHtml = bar mendatar mengikut peralatan dengan peratus.
+  function msUsersHtml(c, items) {
+    var total = (items || []).reduce(function (a, i) { return a + Number(i.value || 0); }, 0), tm = null;
+    (c.secondary || []).forEach(function (x) { if (x.label === 'Jumlah tempahan') tm = x.value; });
+    return '<div class="big1">' + esc(fmtNum(total)) + ' <small>pengguna</small></div>' + (tm !== null ? '<p class="igs">daripada ' + esc(fmtNum(tm)) + ' tempahan</p>' : '');
+  }
+  function msEquipHtml(items) {
+    var total = items.reduce(function (a, i) { return a + Number(i.value || 0); }, 0);
+    return '<p class="igs">Jumlah pengguna (bil_peserta) bagi setiap peralatan · ' + esc(fmtNum(total)) + ' pengguna</p><div class="eqbars">' +
+      hbarsHtml(items, function (v) { return fmtNum(v) + (total ? ' (' + Math.round(v * 100 / total) + '%)' : ''); }, 8) + '</div>';
+  }
+
+  // Kandungan panel KPT (tiga Teras; cincin setiap KPI). Digunakan oleh Infografik dan slaid 2.
+  function kptTerasHtml(d, cs) {
+    var kptList = cs.filter(function (c) { return c.level === 'KPT'; });
+    function compact(c) {
+      var v = Number(c.value);
+      if (c.format === 'pct') return fmtNum(v) + '%';
+      if (c.format === 'rm') return v >= 1e6 ? 'RM' + fmtNum(Math.round(v / 1e5) / 10) + 'j' : v >= 1e3 ? 'RM' + fmtNum(Math.round(v / 100) / 10) + 'k' : 'RM' + fmtNum(Math.round(v));
+      return fmtNum(v);
+    }
+    return d.teras.map(function (t) {
+      var list = kptList.filter(function (c) { return c.teras === t.id; });
+      if (!list.length) return '';
+      return '<div class="kptg"><h4 class="kpth"><span class="kptn">Teras ' + t.no + '</span>' + esc(t.label) + '</h4><div class="kptc">' + list.map(function (c) {
+        return '<div class="kpti">' + ringSvg(pctCap(c) === null ? 0 : pctCap(c), { size: 92, label: c.title, text: compact(c), color: COL.kpt }) +
+          '<b>' + esc(c.title.split(' · ')[0]) + '</b><span class="kptt">' + esc(c.short) + '</span>' +
+          '<small>' + (c.target !== '' ? 'Sasaran ' + esc(fmtVal(c, c.target)) + ' · ' + fmtNum(c.pct) + '%' : 'Tiada sasaran') + '</small>' + statusChip(c.status) + '</div>';
+      }).join('') + '</div></div>';
+    }).join('');
+  }
+
+  function renderInfo() {
+    var d = S.dash, tr = S.trend, el = $('#content');
+    if (!d || !tr) { loadInfo(); return; }
+    var byId = {}; d.kpis.forEach(function (c) { byId[c.id] = c; });
+    var cs = d.kpis, withT = cs.filter(function (c) { return c.target !== ''; });
+    function avgPct(list) { var v = list.map(pctCap).filter(function (x) { return x !== null; }); return v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length) : null; }
+    var h = '<div class="igtop"><div><h2 class="igh">Laporan Prestasi UTMXCITE</h2><p class="igs">' + esc(d.ds.label) + ' · tahun ' + esc(d.year) + ' · data ringkasan, tiada maklumat peribadi</p></div>' +
+      '<div class="igctl"><label for="iy" style="margin:0">Tahun</label><select id="iy" data-change="iyear">' + d.years.map(function (y) { return '<option' + (y === d.year ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<button class="btn sm pbtn" type="button" data-action="slides" title="Cetak / simpan PDF slaid 16:9 untuk pembentangan">Cetak slide</button> <button class="btn o sm pbtn" type="button" data-action="print" title="Cetak halaman Infografik">Cetak halaman</button></div></div><div class="ig">';
+
+    // 0) KPT (paling atas)
+    if (cs.some(function (c) { return c.level === 'KPT'; })) h += panel('KPI Keusahawanan IPT · Peringkat Kementerian (KPT)', kptTerasHtml(d, cs), 'c12 kptp');
+
+    // 1) Pekerjaan Premium Tier 1
+    var pr = d.premium;
+    h += panel('Pekerjaan Premium Tier 1', '<div class="prem2">' + ringSvg(pr.pct, { size: 150, label: 'Usahawan berpendapatan premium', text: pr.pct + '%', tick: pr.targetPct }) +
+      '<div class="pt"><b>' + pr.premium + ' / ' + pr.total + '</b><span>usahawan dengan purata pendapatan sebulan melebihi RM' + String(pr.thresholdRm).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '</span>' +
+      '<span class="gold">▎ Sasaran ' + pr.targetYear + ': ' + pr.targetPct + '%</span><span>' + pr.pctOfTarget + '% daripada sasaran dicapai</span></div></div>', 'c4');
+
+    // 2) Empat peringkat (KPT, KAI, DKAI, CKAI)
+    var lv = d.levels.map(function (l) {
+      var list = cs.filter(function (c) { return c.level === l.id; }), t = list.filter(function (c) { return c.target !== ''; }), p = avgPct(t), m = t.filter(isMeet).length;
+      return ringTile(p === null ? 0 : p, { size: 84, label: l.short.split(' · ')[0], text: p === null ? '–' : p + '%', sub: t.length ? m + ' / ' + t.length + ' KPI capai sasaran' : 'Sasaran belum ditetapkan', color: l.id === 'KPT' ? COL.kpt : l.id === 'KAI' ? COL.m : l.id === 'DKAI' ? COL.teal : '#a0577a' });
+    }).join('');
+    h += panel('Pencapaian mengikut peringkat', '<div class="rrow four">' + lv + '</div><p class="igs">Purata peratus sasaran (had 100%) bagi KPI yang mempunyai sasaran.</p>', 'c4');
+
+    // 3) Ringkasan
+    var rate = Math.round(d.summary.meet * 100 / Math.max(1, d.summary.total));
+    h += panel('Ringkasan ' + d.year, '<div class="bigs"><div><b>' + d.summary.meet + '<small> / ' + d.summary.total + '</small></b><span>KPI mencapai sasaran</span></div>' +
+      '<div><b>' + cs.length + '</b><span>indikator dipantau</span></div><div><b>' + rate + '%</b><span>kadar pencapaian</span></div></div>' +
+      '<div class="pbar2"><i style="width:' + rate + '%"></i></div>' +
+      '<h4 class="igt2">KPI mencapai sasaran mengikut tahun</h4>' + barsSvg(tr.map(function (t) { return { label: String(t.year), value: t.meet }; }), { label: 'KPI mencapai sasaran', fmt: function (v) { return v + ' KPI'; } }), 'c4');
+
+    // 4) Nombor utama
+    var tiles = [['KAI1', 'Inkubator aktif'], ['KAI3', 'Ruang perniagaan'], ['KAI4', 'Pelajar GiGA'], ['KAI6', 'Startup AI'], ['CKAI1', 'Profiling pelajar'], ['CKAI4', 'Pendaftaran SSU'], ['CKAI5', 'Penggunaan Makerspace'], ['CKAI9', 'Anugerah']].filter(function (t) { return byId[t[0]]; });
+    h += panel('Rumusan pencapaian', '<div class="tiles">' + tiles.map(function (t) {
+      var c = byId[t[0]];
+      return '<div class="tile"><b>' + esc(fmtVal(c, c.value)) + '</b><span>' + esc(t[1]) + '</span>' + (c.pct !== null ? '<div class="pbar2"><i style="width:' + Math.min(100, c.pct) + '%"></i></div><small>' + fmtNum(c.pct) + '% daripada sasaran ' + esc(fmtVal(c, c.target)) + '</small>' : '<small>Tiada sasaran ditetapkan</small>') + '</div>';
+    }).join('') + '</div>', 'c8');
+
+    // Trend ukuran premium (hanya tahun yang ada data)
+    var yrs = tr.filter(function (t) { return t.premiumTotal > 0; }).map(function (t) { return { label: String(t.year), value: t.premiumPct }; });
+    h += panel('Trend ukuran premium', (yrs.length ? areaSvg(yrs, { label: 'Trend peratus pekerjaan premium', fmt: function (v) { return v + '%'; }, xlabel: function (l) { return l; }, target: pr.targetPct, targetLabel: 'Sasaran ' + pr.targetPct + '%', valueLabels: true }) : '<p class="igs">Belum ada data pendapatan (CKAI 7) untuk dipaparkan.</p>') + '<p class="igs">Hanya tahun yang ada laporan pendapatan dipaparkan.</p>', 'c4');
+
+    var tb = byId.CKAI10;
+    if (tb) {
+      var tsec = {}; (tb.secondary || []).forEach(function (x) { tsec[x.label] = x.value; });
+      var jimat = tsec['Penjimatan berbanding bajet'] ? '<span>Penjimatan berbanding bajet: ' + esc(tsec['Penjimatan berbanding bajet']) + '</span>' : (tsec['Lebihan berbanding bajet'] ? '<span>Lebihan berbanding bajet: ' + esc(tsec['Lebihan berbanding bajet']) + '</span>' : '');
+      h += panel('Penggunaan tabung amanah', '<div class="prem2">' + ringSvg(Math.min(100, tb.value), { size: 130, label: 'Penggunaan peruntukan', text: fmtNum(tb.value) + '%', color: COL.teal, tick: tb.target !== '' ? tb.target : 0 }) +
+        '<div class="pt"><b>' + esc(tsec['Jumlah perbelanjaan terkumpul'] || '-') + '</b><span>perbelanjaan operasi terkumpul ' + esc(d.year) + '</span><span>Peruntukan: ' + esc(tsec['Jumlah peruntukan / baki awal'] || '-') + '</span><span>Baki tabung: ' + esc(tsec['Baki tabung'] || '-') + '</span>' + jimat + '</div></div>', 'c4');
+    }
+
+    if (byId.CKAI10 && bdOf(byId.CKAI10, /% Penggunaan Tabung/i)) h += panel('% Penggunaan Tabung', tabungRingsHtml(byId.CKAI10, 104), 'c8');
+
+    // 5) Enam fungsi
+    h += panel('Enam fungsi UTMXCITE', '<div class="rrow six">' + d.functions.filter(function (f) { return f.no; }).map(function (f) {
+      var list = cs.filter(function (c) { return c.fungsi === f.id; }), t = list.filter(function (c) { return c.target !== ''; }), p = avgPct(t);
+      return ringTile(p === null ? 0 : p, { size: 88, label: f.no + ' · ' + (f.nama || f.short), en: f.nama ? f.short : '', text: p === null ? '–' : p + '%', sub: list.length + ' indikator' });
+    }).join('') + '</div>', 'c12');
+
+    // 7) Baris 1: pendapatan usahawan mengikut bulan + mengikut fakulti; baris 2: Makerspace mengikut bulan + mengikut peralatan; baris 3: sewaan, SSU, profiling
+    var inc = bdOf(byId.CKAI7, /bulan/i), rent = bdOf(byId.CKAI6, /bulan/i), ms = bdOf(byId.CKAI5, /bulan/i), incFak = bdOf(byId.CKAI7, /fakulti/i);
+    var msEq = bdOf(byId.CKAI5, /Penggunaan mengikut peralatan/i);
+    if (inc) h += panel('Pendapatan usahawan (RM) mengikut bulan', '<div class="big1">' + esc(fmtVal(byId.CKAI7, byId.CKAI7.value)) + '</div>' + areaSvg(inc, { label: 'Pendapatan usahawan bulanan', fmt: money }), 'c6');
+    if (incFak) h += panel('Pendapatan usahawan mengikut fakulti', hbarsHtml(incFak, money, 7), 'c6');
+    if (ms) h += panel('Penggunaan Makerspace mengikut bulan', msUsersHtml(byId.CKAI5, ms) + barsSvg(ms, { label: 'Pengguna Makerspace bulanan', fmt: function (v) { return v + ' pengguna'; } }), 'c4');
+    if (msEq) h += panel('Penggunaan Makerspace mengikut peralatan', msEquipHtml(msEq), 'c8');
+    if (rent) h += panel('Sewaan ruang niaga diterima (RM)', '<div class="big1">' + esc(fmtVal(byId.CKAI6, byId.CKAI6.value)) + '</div>' + areaSvg(rent, { label: 'Sewaan ruang niaga bulanan', fmt: money }), 'c4');
+    [['CKAI4', 'Pendaftaran SSU mengikut fakulti'], ['CKAI1', 'Profiling pelajar mengikut fakulti']].forEach(function (f) { var it = bdOf(byId[f[0]], /fakulti/i); if (it) h += panel(f[1], hbarsHtml(it, null, 7), 'c4'); });
+
+    // 9) Semua indikator
+    var all = cs.slice().sort(function (a, b) { return (b.pct === null ? -1 : b.pct) - (a.pct === null ? -1 : a.pct); });
+    h += panel('Semua indikator (susunan peratus sasaran)', '<div class="klist">' + all.map(function (c) {
+      return '<div class="kl"><span class="kn" title="' + esc(c.title) + '">' + esc(c.title.split(' · ')[0]) + ' · ' + esc(c.short) + '</span>' +
+        '<span class="mini"><i style="width:' + (c.pct === null ? 0 : Math.min(100, c.pct)) + '%"></i></span><span class="n">' + esc(fmtVal(c, c.value)) + (c.target !== '' ? ' / ' + esc(fmtVal(c, c.target)) : '') + '</span>' + statusChip(c.status) + '</div>';
+    }).join('') + '</div>', 'c12');
+
+    el.innerHTML = h + '</div>';
+  }
+
+  // ------------------------------------------------------------------ PDF slaid 16:9 (pembentangan)
+  function slideShell(inner, o) {
+    o = o || {};
+    return '<section class="slide' + (o.cls ? ' ' + o.cls : '') + '">' + inner + '</section>';
+  }
+  function slideHead(kicker, title, sub) {
+    return '<header class="sh2"><div><span class="sk">' + esc(kicker) + '</span><h2>' + esc(title) + '</h2>' + (sub ? '<p>' + esc(sub) + '</p>' : '') + '</div>' +
+      (window.UTM_LOGO ? '<img src="' + window.UTM_LOGO + '" alt="">' : '') + '</header>';
+  }
+  function slideRows(list) {
+    return '<div class="srows">' + list.map(function (c) {
+      var p = pctCap(c);
+      return '<div class="srow"><div class="sn"><b>' + esc(c.title.split(' · ')[0]) + '</b><span>' + esc(c.short) + '</span></div>' +
+        '<div class="sbar"><i style="width:' + (p === null ? 0 : p) + '%"></i></div>' +
+        '<div class="sv"><b>' + esc(fmtVal(c, c.value)) + '</b><span>' + (c.target !== '' ? 'sasaran ' + esc(fmtVal(c, c.target)) + ' · ' + fmtNum(c.pct) + '%' : 'tiada sasaran') + '</span></div>' +
+        statusChip(c.status) + '</div>';
+    }).join('') + '</div>';
+  }
+  function buildSlides(d, tr) {
+    var byId = {}; d.kpis.forEach(function (c) { byId[c.id] = c; });
+    var cs = d.kpis, slides = [], pr = d.premium;
+    function avgPct(list) { var v = list.map(pctCap).filter(function (x) { return x !== null; }); return v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length) : null; }
+    var rate = Math.round(d.summary.meet * 100 / Math.max(1, d.summary.total));
+    // 0) Slaid tajuk (kulit)
+    slides.push(slideShell('<svg class="cv-art" viewBox="0 0 420 300" aria-hidden="true"><defs><linearGradient id="cvg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d6db"/><stop offset=".45" stop-color="#b3475d"/><stop offset="1" stop-color="#5c0f2a"/></linearGradient><linearGradient id="cvg2" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#d9a5b0"/><stop offset="1" stop-color="#7a1a3d"/></linearGradient></defs>' +
+      '<g transform="translate(250 -20) rotate(24)"><ellipse cx="100" cy="90" rx="190" ry="70" fill="none" stroke="url(#cvg1)" stroke-width="38"/><ellipse cx="100" cy="92" rx="150" ry="46" fill="none" stroke="url(#cvg2)" stroke-width="22" opacity=".9"/><ellipse cx="100" cy="95" rx="105" ry="26" fill="none" stroke="#8a1c46" stroke-width="10" opacity=".75"/></g></svg>' +
+      '<div class="cv-in"><span class="cv-sulit">SULIT</span>' + '<div class="cv-logos">' + (S.logos && S.logos.utm ? '<img class="lg-utm" src="' + S.logos.utm + '" alt="Universiti Teknologi Malaysia"><i class="lg-sep"></i>' : '') + (window.UTM_LOGO ? '<img class="lg-asc" src="' + window.UTM_LOGO + '" alt="UTM ASCEND 2030">' : '') + (S.logos && S.logos.xcite ? '<i class="lg-sep"></i><img class="lg-xc" src="' + S.logos.xcite + '" alt="UTMXCITE">' : '') + '</div>' +
+      '<h1>LAPORAN<br>PENCAPAIAN<br>PRESTASI UTMXCITE</h1><div class="cv-line"></div><p class="cv-by">Disediakan Oleh :<br><b>Pusat Inovasi Mahasiswa dan Keusahawanan Teknologi (UTMXCITE)</b></p><p class="cv-yr">Tahun ' + esc(d.year) + '</p></div>' +
+      '<footer class="cv-ft"><span>Jabatan Timbalan Naib Canselor (Hal Ehwal Pelajar &amp; Alumni), UTM</span><i>Innovating Sustainable Solutions</i></footer>', { cls: 'cover' }));
+    // 1) Slaid 2: paparan ringkasan Infografik (Premium, Peringkat, Ringkasan, Rumusan pencapaian, Trend premium)
+    var lv = d.levels.map(function (l) {
+      var list = cs.filter(function (c) { return c.level === l.id; }), t = list.filter(function (c) { return c.target !== ''; }), p = avgPct(t), m = t.filter(isMeet).length;
+      return ringTile(p === null ? 0 : p, { size: 84, label: l.short.split(' · ')[0], text: p === null ? '–' : p + '%', sub: t.length ? m + ' / ' + t.length + ' KPI capai sasaran' : 'Sasaran belum ditetapkan', color: l.id === 'KPT' ? COL.kpt : l.id === 'KAI' ? COL.m : l.id === 'DKAI' ? COL.teal : '#a0577a' });
+    }).join('');
+    var tiles = [['KAI1', 'Inkubator aktif'], ['KAI3', 'Ruang perniagaan'], ['KAI4', 'Pelajar GiGA'], ['KAI6', 'Startup AI'], ['CKAI1', 'Profiling pelajar'], ['CKAI4', 'Pendaftaran SSU'], ['CKAI5', 'Penggunaan Makerspace'], ['CKAI9', 'Anugerah']].filter(function (t) { return byId[t[0]]; });
+    var yrs = tr.filter(function (t) { return t.premiumTotal > 0; }).map(function (t) { return { label: String(t.year), value: t.premiumPct }; });
+    var ov = panel('Pekerjaan Premium Tier 1', '<div class="prem2">' + ringSvg(pr.pct, { size: 150, label: 'Usahawan berpendapatan premium', text: pr.pct + '%', tick: pr.targetPct }) +
+      '<div class="pt"><b>' + pr.premium + ' / ' + pr.total + '</b><span>usahawan dengan purata pendapatan sebulan melebihi RM' + String(pr.thresholdRm).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '</span>' +
+      '<span class="gold">▎ Sasaran ' + pr.targetYear + ': ' + pr.targetPct + '%</span><span>' + pr.pctOfTarget + '% daripada sasaran dicapai</span></div></div>', 'c4') +
+      panel('Pencapaian mengikut peringkat', '<div class="rrow four">' + lv + '</div><p class="igs">Purata peratus sasaran (had 100%) bagi KPI yang mempunyai sasaran.</p>', 'c4') +
+      panel('Ringkasan ' + d.year, '<div class="bigs"><div><b>' + d.summary.meet + '<small> / ' + d.summary.total + '</small></b><span>KPI mencapai sasaran</span></div>' +
+        '<div><b>' + cs.length + '</b><span>indikator dipantau</span></div><div><b>' + rate + '%</b><span>kadar pencapaian</span></div></div>' +
+        '<div class="pbar2"><i style="width:' + rate + '%"></i></div>' +
+        '<h4 class="igt2">KPI mencapai sasaran mengikut tahun</h4>' + barsSvg(tr.map(function (t) { return { label: String(t.year), value: t.meet }; }), { label: 'KPI mencapai sasaran', fmt: function (v) { return v + ' KPI'; } }), 'c4') +
+      panel('Rumusan pencapaian', '<div class="tiles">' + tiles.map(function (t) {
+        var c = byId[t[0]];
+        return '<div class="tile"><b>' + esc(fmtVal(c, c.value)) + '</b><span>' + esc(t[1]) + '</span>' + (c.pct !== null ? '<div class="pbar2"><i style="width:' + Math.min(100, c.pct) + '%"></i></div><small>' + fmtNum(c.pct) + '% daripada sasaran ' + esc(fmtVal(c, c.target)) + '</small>' : '<small>Tiada sasaran ditetapkan</small>') + '</div>';
+      }).join('') + '</div>', 'c8') +
+      panel('Trend ukuran premium', (yrs.length ? areaSvg(yrs, { label: 'Trend peratus pekerjaan premium', fmt: function (v) { return v + '%'; }, xlabel: function (l) { return l; }, target: pr.targetPct, targetLabel: 'Sasaran ' + pr.targetPct + '%', valueLabels: true }) : '<p class="igs">Belum ada data pendapatan (CKAI 7) untuk dipaparkan.</p>') + '<p class="igs">Hanya tahun yang ada laporan pendapatan dipaparkan.</p>', 'c4');
+    slides.push(slideShell('<header class="sh1"><div><span class="sk">' + esc(d.ds.label) + '</span><h2>Laporan Prestasi UTMXCITE · ' + esc(d.year) + '</h2></div>' +
+      (window.UTM_LOGO ? '<img src="' + window.UTM_LOGO + '" alt="">' : '') + '</header><div class="ig ig1">' + ov + '</div>', { cls: 'first' }));
+    // Slaid 3: panel KPT (tiga Teras) seperti paparan Infografik
+    slides.push(slideShell('<header class="sh1"><div><span class="sk">KPT · Peringkat Kementerian</span><h2>KPI Keusahawanan IPT · Peringkat Kementerian (KPT)</h2></div>' +
+      (window.UTM_LOGO ? '<img src="' + window.UTM_LOGO + '" alt="">' : '') + '</header><div class="ig ig1 kptslide"><section class="igp c12 kptp">' + kptTerasHtml(d, cs) + '</section></div>', { cls: 'first' }));
+    // helper: slaid berasaskan grid panel Infografik (header ringkas + panel)
+    function gridSlide(kicker, title, panels, zoom) {
+      return slideShell('<header class="sh1"><div><span class="sk">' + esc(kicker) + '</span><h2>' + esc(title) + '</h2></div>' + (window.UTM_LOGO ? '<img src="' + window.UTM_LOGO + '" alt="">' : '') +
+        '</header><div class="ig ig1" style="zoom:' + (zoom || .83) + '">' + panels + '</div>', { cls: 'first' });
+    }
+    // Slaid 4: KAI · Peringkat Universiti (KAI 1-6; DKAI 1 sebagai baris tambahan)
+    var kaiList = cs.filter(function (c) { return c.level === 'KAI'; }), dk = cs.filter(function (c) { return c.level === 'DKAI'; });
+    if (kaiList.length) slides.push(slideShell(slideHead('KAI · Peringkat Universiti', 'KAI · Peringkat Universiti', 'Growth (KAI 1-3) · Transform (KAI 4-6)' + (dk.length ? ' · DKAI 1 Peringkat Jabatan (JTNC HEPA)' : '')) +
+      '<div class="sbody">' + slideRows(kaiList.concat(dk)) + '</div>'));
+    // 4) Slaid 4: enam fungsi + pendapatan usahawan, Makerspace dan pendapatan mengikut fakulti
+    var inc = bdOf(byId.CKAI7, /bulan/i), ms = bdOf(byId.CKAI5, /bulan/i), rent = bdOf(byId.CKAI6, /bulan/i);
+    var fn6 = panel('Enam fungsi UTMXCITE', '<div class="rrow six">' + d.functions.filter(function (f) { return f.no; }).map(function (f) {
+      var list = cs.filter(function (c) { return c.fungsi === f.id; }), t = list.filter(function (c) { return c.target !== ''; }), p = avgPct(t);
+      return ringTile(p === null ? 0 : p, { size: 88, label: f.no + ' · ' + (f.nama || f.short), en: f.nama ? f.short : '', text: p === null ? '–' : p + '%', sub: list.length + ' indikator' });
+    }).join('') + '</div>', 'c12');
+    var p4 = fn6, fi7 = bdOf(byId.CKAI7, /fakulti/i);
+    if (inc) p4 += panel('Pendapatan usahawan (RM) mengikut bulan', '<div class="big1">' + esc(fmtVal(byId.CKAI7, byId.CKAI7.value)) + '</div>' + areaSvg(inc, { label: 'Pendapatan usahawan bulanan', fmt: money }), 'c6');
+    if (fi7) p4 += panel('Pendapatan usahawan mengikut fakulti', hbarsHtml(fi7, money, 7), 'c6');
+    slides.push(gridSlide('Fungsi dan prestasi', 'Enam fungsi UTMXCITE dan prestasi usahawan', p4, .95));
+    // 5) Slaid 5: sewaan ruang niaga, SSU dan profiling
+    var p5 = '';
+    if (rent) p5 += panel('Sewaan ruang niaga diterima (RM)', '<div class="big1">' + esc(fmtVal(byId.CKAI6, byId.CKAI6.value)) + '</div>' + areaSvg(rent, { label: 'Sewaan ruang niaga bulanan', fmt: money }), 'c4');
+    [['CKAI4', 'Pendaftaran SSU mengikut fakulti'], ['CKAI1', 'Profiling pelajar mengikut fakulti']].forEach(function (f) { var it = bdOf(byId[f[0]], /fakulti/i); if (it) p5 += panel(f[1], hbarsHtml(it, null, 8), 'c4'); });
+    if (p5) slides.push(gridSlide('Prestasi', 'Sewaan ruang niaga, SSU dan profiling pelajar', p5, 1.3));
+    // Slaid 6: Penggunaan Makerspace (pengguna mengikut bulan + mengikut peralatan)
+    var msEq2 = bdOf(byId.CKAI5, /Penggunaan mengikut peralatan/i);
+    if (ms && msEq2) slides.push(gridSlide('CKAI 5', 'Penggunaan Makerspace mengikut bilangan pengguna',
+      panel('Penggunaan Makerspace mengikut bulan', msUsersHtml(byId.CKAI5, ms) + barsSvg(ms, { label: 'Pengguna Makerspace bulanan', fmt: function (v) { return v + ' pengguna'; } }), 'c4') +
+      panel('Penggunaan Makerspace mengikut peralatan', msEquipHtml(msEq2), 'c8'), 1.4));
+    // 7) Slaid 7: penggunaan tabung amanah (CKAI 10)
+    var tb = byId.CKAI10;
+    if (tb) {
+      var tsec = {}; (tb.secondary || []).forEach(function (x) { tsec[x.label] = x.value; });
+      var jimat = tsec['Penjimatan berbanding bajet'] ? '<span>Penjimatan berbanding bajet: ' + esc(tsec['Penjimatan berbanding bajet']) + '</span>' : (tsec['Lebihan berbanding bajet'] ? '<span>Lebihan berbanding bajet: ' + esc(tsec['Lebihan berbanding bajet']) + '</span>' : '');
+      slides.push(gridSlide('CKAI 10', 'Penggunaan tabung amanah',
+        panel('Penggunaan tabung amanah', '<div class="prem2">' + ringSvg(Math.min(100, tb.value), { size: 130, label: 'Penggunaan peruntukan', text: fmtNum(tb.value) + '%', color: COL.teal, tick: tb.target !== '' ? tb.target : 0 }) +
+          '<div class="pt"><b>' + esc(tsec['Jumlah perbelanjaan terkumpul'] || '-') + '</b><span>perbelanjaan operasi terkumpul ' + esc(d.year) + '</span><span>Peruntukan: ' + esc(tsec['Jumlah peruntukan / baki awal'] || '-') + '</span><span>Baki tabung: ' + esc(tsec['Baki tabung'] || '-') + '</span>' + jimat + '</div></div>', 'c4') +
+        (bdOf(tb, /% Penggunaan Tabung/i) ? panel('% Penggunaan Tabung', tabungRingsHtml(tb, 118), 'c8') : ''), 1.2));
+    }
+    // 6+) Semua indikator (susunan peratus sasaran), 12 baris setiap slaid
+    var all = cs.slice().sort(function (a, b) { return (b.pct === null ? -1 : b.pct) - (a.pct === null ? -1 : a.pct); });
+    for (var i = 0; i < all.length; i += 12) {
+      slides.push(gridSlide('Semua indikator', 'Semua indikator ' + (Math.floor(i / 12) + 1) + ' / ' + Math.ceil(all.length / 12),
+        panel('Susunan peratus sasaran', '<div class="klist">' + all.slice(i, i + 12).map(function (c) {
+          return '<div class="kl"><span class="kn" title="' + esc(c.title) + '">' + esc(c.title.split(' · ')[0]) + ' · ' + esc(c.short) + '</span>' +
+            '<span class="mini"><i style="width:' + (c.pct === null ? 0 : Math.min(100, c.pct)) + '%"></i></span><span class="n">' + esc(fmtVal(c, c.value)) + (c.target !== '' ? ' / ' + esc(fmtVal(c, c.target)) : '') + '</span>' + statusChip(c.status) + '</div>';
+        }).join('') + '</div>', 'c12'), 1.08));
+    }
+    // Akhir) Indikator yang perlu perhatian
+    var low = cs.filter(function (c) { return c.target !== '' && c.status === 'Di bawah sasaran'; }).sort(function (a, b) { return (a.pct || 0) - (b.pct || 0); }).slice(0, 7);
+    slides.push(slideShell(slideHead('Tindakan', 'Indikator yang perlu perhatian', low.length ? 'Di bawah sasaran ' + d.year + ', disusun mengikut peratus terendah' : 'Semua KPI bersasaran mencapai sasaran') +
+      '<div class="sbody">' + (low.length ? slideRows(low) : '<p class="bigok">Tahniah, tiada indikator di bawah sasaran.</p>') + '</div>'));
+    var total = slides.length;
+    return slides.map(function (html, i) { if (i === 0) return html;   // kulit tanpa pengaki biasa
+       var cut = html.lastIndexOf('</section>'); return html.slice(0, cut) + '<footer class="sf"><span>UTMXCITE · Laporan Prestasi ' + esc(d.year) + '</span><span>' + (i + 1) + ' / ' + total + '</span></footer></section>'; }).join('');
+  }
+  function printSlides() {
+    var d = S.dash, tr = S.trend; if (!d || !tr) { toast('Data infografik belum dimuat.', true); return; }
+    // logo UTM dan UTMXCITE dimuat sekali sahaja apabila diperlukan (tidak menambah saiz halaman)
+    if (!S.logos) { call('api_slideLogos').then(function (l) { S.logos = l; printSlides(); }).catch(function () { S.logos = {}; printSlides(); }); return; }
+    var host = document.getElementById('slides');
+    if (!host) { host = document.createElement('div'); host.id = 'slides'; document.body.appendChild(host); }
+    host.innerHTML = buildSlides(d, tr);
+    var st = document.createElement('style'); st.id = 'pgstyle'; st.textContent = '@page{size:13.333in 7.5in;margin:0}'; document.head.appendChild(st);
+    document.body.classList.add('ps');
+    var oldTitle = document.title; document.title = 'Laporan Prestasi UTMXCITE ' + d.year + ' (slaid)';
+    function done() { document.body.classList.remove('ps'); var x = document.getElementById('pgstyle'); if (x) x.remove(); host.innerHTML = ''; document.title = oldTitle; window.removeEventListener('afterprint', done); }
+    window.addEventListener('afterprint', done);
+    window.__slidesDone = done;
+    window.print();
+  }
+
+  // ------------------------------------------------------------------ Admin: persediaan
+  function renderSetup() {
+    var el = $('#content');
+    if (!S.setup) {
+      el.innerHTML = '<p class="boot">Memuatkan…</p>';
+      call('api_setupInfo', S.token).then(function (r) { S.setup = r; if (S.view.name === 'setup') renderSetup(); })
+        .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+      return;
+    }
+    var i = S.setup;
+    function row(label, val, url, note) {
+      var v = val ? (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(val) + '</a>' : esc(val)) : '<span class="muted">(tiada)</span>';
+      return '<tr><th scope="row">' + esc(label) + '</th><td style="word-break:break-all">' + v + (note ? '<div class="muted">' + esc(note) + '</div>' : '') + '</td><td>' +
+        (val ? '<button class="btn o" data-action="copy" data-v="' + esc(val) + '">Salin</button>' : '') + '</td></tr>';
+    }
+    var h = '<div class="panel"><table><tbody>' +
+      row('Google Sheet - ID', i.sheet && i.sheet.id) +
+      row('Google Sheet - Pautan', i.sheet && i.sheet.url, i.sheet && i.sheet.url) +
+      row('Web app - Pautan', i.webAppUrl, i.webAppUrl, i.isDevUrl ? 'Ini pautan ujian /dev. Kongsi pautan /exec daripada Deploy > Manage deployments.' : '') +
+      row('Script ID', i.scriptId) +
+      row('Folder lampiran - Pautan', i.folder && i.folder.url, i.folder && i.folder.url, i.folder ? '' : 'Dicipta automatik semasa muat naik PDF pertama.') +
+      row('Pemilik skrip (Execute as)', i.owner) +
+      '</tbody></table></div>' +
+      '<div class="panel"><h3>Semakan sistem</h3><ul class="chk">';
+    i.checks.forEach(function (c) {
+      h += '<li data-ok="' + (c.ok === null ? 'na' : c.ok ? '1' : '0') + '">' + (c.ok === null ? '–' : c.ok ? '✓' : '✗') + ' ' + esc(c.label) + (c.detail ? '<div class="muted">' + esc(c.detail) + '</div>' : '') + '</li>';
+    });
+    h += '</ul><div class="acts"><button class="btn" data-action="runsetup">Jalankan persediaan</button> <button class="btn o" data-action="testmail">Hantar e-mel ujian</button></div>' +
+      '<p class="muted">Maklumat sama juga ada dalam tab "Persediaan" di dalam Google Sheet. Jika paparan "404", pastikan guna pautan /exec, Execute as = Me, Who has access = Anyone, dan deploy New version selepas ubah kod.</p></div>';
+    el.innerHTML = h;
+  }
+  function copyText(t) {
+    function fb() { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Disalin.'); } catch (e) { toast('Tidak dapat menyalin.', true); } ta.remove(); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Disalin.'); }, fb); else fb();
+  }
+
+  // ------------------------------------------------------------------ log masuk (OTP)
+
+  function renderLogin() {
+    var L = S.login;
+    $('#app').innerHTML =
+      '<div class="lgpage"><header class="lgban">' +
+      (window.UTM_LOGO ? '<img src="' + window.UTM_LOGO + '" alt="Universiti Teknologi Malaysia ASCEND 2030">' : '') +
+      '<div class="lgtt"><small>DS04 · Pekerjaan Premium Tier 1</small><b>' + esc(APP_NAME) + '</b><span>Dashboard KPI UTMXCITE JTNCHEPA</span></div></header>' +
+      '<main class="lgmain"><div class="lgcard" role="dialog" aria-labelledby="ltitle">' +
+      '<h2 id="ltitle">Log Masuk</h2>' +
+      '<p>Masukkan e-mel berdaftar anda. Kod pengesahan enam digit akan dihantar melalui e-mel.</p>' +
+      '<form id="lform" novalidate>' +
+      '<label for="l_emel">E-mel berdaftar</label><input type="email" id="l_emel" autocomplete="email" placeholder="nama@utm.my" value="' + esc(L.email || '') + '">' +
+      '<label for="l_code">Kod OTP</label><input type="text" id="l_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Masukkan kod 6 digit" value="' + esc(L.code || '') + '">' +
+      (L.message ? '<div class="ok" role="status">' + esc(L.message) + '</div>' : '') +
+      '<div class="err" role="alert">' + esc(L.error || '') + '</div>' +
+      '<div class="lgacts"><button class="btn" type="button" data-action="sendotp"' + (L.busy ? ' disabled' : '') + '>' + (L.busy === 'send' ? 'Menghantar…' : 'Hantar / Hantar Semula Kod') + '</button>' +
+      '<button class="btn" type="submit"' + (L.busy ? ' disabled' : '') + '>' + (L.busy === 'verify' ? 'Mengesahkan…' : 'Sahkan dan Log Masuk') + '</button></div>' +
+      '<p class="lgback"><a href="#" data-action="lclose">← Kembali ke dashboard awam</a></p></form></div></main>' +
+      '<footer class="lgfoot">© 2026 UTMXCITE, Universiti Teknologi Malaysia</footer></div>';
+    var f = (L.message && $('#l_code')) || $('#l_emel'); if (f && !L.noFocus) f.focus();
+  }
+  function loginKeep() {   // simpan nilai medan sebelum lukis semula
+    var L = S.login; if (!L) return;
+    if ($('#l_emel')) L.email = $('#l_emel').value.trim();
+    if ($('#l_code')) L.code = $('#l_code').value.trim();
+  }
+
+  function sendOtp() {
+    var L = S.login; if (!L || L.busy) return;
+    loginKeep(); L.error = ''; L.message = '';
+    if (!L.email) { L.error = 'Sila masukkan e-mel.'; renderLogin(); return; }
+    L.busy = 'send'; renderLogin();
+    call('api_requestOtp', L.email).then(function (r) {
+      L.busy = false; L.message = r.message || 'Kod OTP telah dihantar.'; renderLogin();
+    }).catch(function (e) { L.busy = false; L.error = e.message; renderLogin(); });
+  }
+
+  function submitLogin() {
+    var L = S.login; if (!L || L.busy) return;
+    loginKeep(); L.error = '';
+    if (!L.email) { L.error = 'Sila masukkan e-mel.'; renderLogin(); return; }
+    if (!/^\d{6}$/.test(L.code || '')) { L.error = L.message ? 'Masukkan kod 6 digit.' : 'Tekan "Hantar Kod" dahulu, kemudian masukkan kod 6 digit.'; renderLogin(); return; }
+    L.busy = 'verify'; renderLogin();
+    call('api_verifyOtp', L.email, L.code).then(function (r) {
+      S.token = r.token; store('set', 'utmx_token', r.token);
+      S.login = null;
+      return call('api_session', S.token);
+    }).then(function (sess) {
+      S.session = sess; S.view = { name: 'infografik' }; S.dash = null;
+      toast('Selamat datang, ' + (sess.user.nama || sess.user.emel) + '.');
+      render();
+    }).catch(function (e) { L.busy = false; L.error = e.message; L.code = ''; renderLogin(); });
+  }
+
+  function doLogout() {
+    var t = S.token;
+    S.token = null; S.session = null; store('del', 'utmx_token');
+    S.view = { name: 'infografik' }; S.list = S.users = S.targets = S.audit = null; S.editing = null; S.dash = null;
+    if (t) call('api_logout', t).catch(function () {});
+    toast('Anda telah log keluar.');
+    render();
+  }
+
+  // ------------------------------------------------------------------ navigasi
+  function go(target) {
+    S.navOpen = false; S.editing = null; S.list = null; S.listFilters = {};
+    var lvl = levelOf(target); if (lvl) S.open[lvl] = true;
+    if (target === 'infografik') { S.view = { name: 'infografik' }; S.trend = null; S.dash = null; }
+    else if (target === 'dashboard') { S.view = { name: 'dashboard' }; S.dash = null; } // muat semula supaya angka terkini dipaparkan
+    else if (target.indexOf('kpi:') === 0) S.view = { name: 'kpi', id: target.slice(4), tab: 'list' };
+    else { S.view = { name: target }; if (target === 'users') S.users = null; if (target === 'targets') S.targets = null; if (target === 'audit') S.audit = null; if (target === 'setup') S.setup = null; }
+    render(); window.scrollTo(0, 0);
+  }
+
+  // ------------------------------------------------------------------ peristiwa
+  document.addEventListener('click', function (ev) {
+    var nav = ev.target.closest('[data-nav]');
+    if (nav) { go(nav.getAttribute('data-nav')); return; }
+    var a = ev.target.closest('[data-action]');
+    if (!a) return;
+    var act = a.getAttribute('data-action');
+    var k = S.view.name === 'kpi' ? kpiById(S.view.id) : null;
+    switch (act) {
+      case 'togglenav': S.navOpen = !S.navOpen; $('#side').classList.toggle('open', S.navOpen); $('.scrim').classList.toggle('open', S.navOpen); break;
+      case 'tg':
+        var gid = a.getAttribute('data-g');
+        if (S.mini) { S.mini = false; S.open[gid] = true; } else S.open[gid] = !isOpen(gid);
+        redrawSide(); break;
+      case 'collapse':
+        if (window.innerWidth <= 860) { S.navOpen = false; $('#side').classList.remove('open'); $('.scrim').classList.remove('open'); }
+        else { S.mini = !S.mini; redrawSide(); }
+        break;
+      case 'closenav': S.navOpen = false; $('#side').classList.remove('open'); $('.scrim').classList.remove('open'); break;
+      case 'login': S.login = { email: '' }; renderLogin(); break;
+      case 'sendotp': sendOtp(); break;
+      case 'lclose': ev.preventDefault(); S.login = null; render(); break;
+      case 'logout': doLogout(); break;
+      case 'dview': S.dashView = a.getAttribute('data-view'); renderDashboard(); break;
+      case 'padd':
+        var pk = a.getAttribute('data-key'), pfd = k && fieldDef(k, pk);
+        syncPeople(pk);
+        if (!S.people[pk]) S.people[pk] = [];
+        if (pfd && pfd.max && S.people[pk].length >= pfd.max) { toast('Maksimum ' + pfd.max + ' ' + (pfd.noun || 'pelajar') + '.', true); break; }
+        S.people[pk].push({ nama: '', matrik: '', nokp: '', fakulti: '' }); redrawPeople(pk); break;
+      case 'pdel': syncPeople(a.getAttribute('data-key')); S.people[a.getAttribute('data-key')].splice(parseInt(a.getAttribute('data-i'), 10), 1); redrawPeople(a.getAttribute('data-key')); break;
+      case 'fdl': if (k) downloadPdf(k, a.getAttribute('data-id'), a.getAttribute('data-key')); break;
+      case 'tab': S.view.tab = a.getAttribute('data-tab'); if (S.view.tab === 'list') S.editing = null; renderKpi(); break;
+      case 'msync': runMsync(); break;
+      case 'stucancel': S.modal = null; drawStudentModal(); break;
+      case 'bulkstu': bulkCompleteStudents(kpiById(S.view.id)); break;
+      case 'bulkdl': downloadTemplate(kpiById(S.view.id)); break;
+      case 'bulkgo': runBulk(kpiById(S.view.id)); break;
+      case 'bulkerr': downloadBulkErrors(kpiById(S.view.id)); break;
+      case 'bulkreset': S.bulk = null; renderKpi(); break;
+      case 'new': S.editing = null; S.view.tab = 'form'; renderKpi(); break;
+      case 'cancelform': S.editing = null; S.view.tab = 'list'; renderKpi(); break;
+      case 'edit':
+        S.editing = (S.list.rows.filter(function (r) { return r.id === a.getAttribute('data-id'); })[0]) || null;
+        S.view.tab = 'form'; renderKpi(); window.scrollTo(0, 0); break;
+      case 'del':
+        if (k) {
+          var rid = a.getAttribute('data-id');
+          askConfirm('Padam rekod ' + rid + '? Tindakan ini tidak boleh dibatalkan.', 'Ya, padam').then(function (yes) {
+            if (!yes) return;
+            call('api_delete', S.token, k.id, rid).then(function () { toast('Rekod dipadam.'); S.list = null; renderList(k); })
+              .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+          });
+        }
+        break;
+      case 'uedit':
+        var u = S.users.filter(function (x) { return x.emel === a.getAttribute('data-email'); })[0];
+        if (u) {
+          $('#u_emel').value = u.emel; $('#u_nama').value = u.nama; $('#u_peranan').value = u.peranan;
+          $('#u_fakulti').value = u.fakulti; $('#u_akses').value = u.kpi_akses; $('#u_aktif').value = u.aktif;
+          window.scrollTo(0, 0);
+        }
+        break;
+      case 'uclear': $('#uform').reset(); break;
+      case 'copy': copyText(a.getAttribute('data-v')); break;
+      case 'logoutall':
+        askConfirm('Log keluar daripada SEMUA peranti dan pelayar? Anda perlu OTP baharu untuk log masuk semula.', 'Ya, log keluar semua').then(function (yes) {
+          if (!yes) return;
+          call('api_logoutAll', S.token).then(function () { S.token = null; S.session = null; store('del', 'utmx_token'); doLogout(); }).catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+        });
+        break;
+      case 'slides': printSlides(); break;
+      case 'print':   // tajuk dokumen (dan nama fail PDF) = Laporan Prestasi UTMXCITE
+        var oldTitle = document.title; document.title = 'Laporan Prestasi UTMXCITE' + (S.dash ? ' ' + S.dash.year : '');
+        window.print(); document.title = oldTitle; break;
+      case 'runsetup':
+        askConfirm('Jalankan persediaan semula? Tab/lajur yang tiada akan ditambah; data sedia ada tidak dipadam.', 'Ya, jalankan').then(function (yes) {
+          if (!yes) return;
+          call('api_runSetup', S.token).then(function () { toast('Persediaan selesai.'); S.setup = null; renderSetup(); })
+            .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+        });
+        break;
+      case 'testmail':
+        call('api_testMail', S.token).then(function (r) { toast('E-mel ujian dihantar ke ' + r.to + '.'); })
+          .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+        break;
+      case 'udel':
+        var em = a.getAttribute('data-email');
+        askConfirm('Padam pengguna ' + em + '?', 'Ya, padam').then(function (yes) {
+          if (!yes) return;
+          call('api_deleteUser', S.token, em).then(function () { toast('Pengguna dipadam.'); S.users = null; renderUsers(); })
+            .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+        });
+        break;
+      case 'tsave':
+        var i = parseInt(a.getAttribute('data-i'), 10), t = S.targets[i], row = { kpi: t.kpi, tahun: t.tahun };
+        $$('[data-t="' + i + '"]').forEach(function (inp) { row[inp.getAttribute('data-k')] = inp.value; });
+        call('api_saveTarget', S.token, row).then(function () { toast('Sasaran ' + t.kpi + ' ' + t.tahun + ' disimpan.'); S.dash = null; S.targets = null; renderTargets(); })
+          .catch(function (e) { if (!authFail(e)) toast(e.message, true); });
+        break;
+    }
+  });
+
+  document.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var id = ev.target.id;
+    if (id === 'kform') submitForm();
+    else if (id === 'stuform') saveStudentModal();
+    else if (id === 'lform') submitLogin();
+    else if (id === 'uform') {
+      var rec = { emel: $('#u_emel').value, nama: $('#u_nama').value, peranan: $('#u_peranan').value, fakulti: $('#u_fakulti').value, kpi_akses: $('#u_akses').value, aktif: $('#u_aktif').value };
+      call('api_saveUser', S.token, rec).then(function () { toast('Pengguna disimpan.'); S.users = null; renderUsers(); })
+        .catch(function (e) { if (authFail(e)) return; showFieldErrors(e.fields); toast(e.message, true); });
+    }
+  });
+
+  document.addEventListener('change', function (ev) {
+    if (ev.target.id && ev.target.id.indexOf('f_') === 0 && S.view.name === 'kpi') { var ak = kpiById(S.view.id); if (ak) applyAutofill(ak, ev.target.id.slice(2)); }
+    var tg = ev.target, kk2 = S.view.name === 'kpi' ? kpiById(S.view.id) : null;
+    if (kk2 && ((kk2.student && tg.id === 'f_' + kk2.student.matrik) || tg.getAttribute('data-pf') === 'matrik')) { onMatrikChange(kk2, tg); }
+    var c = ev.target.getAttribute && ev.target.getAttribute('data-change');
+    if (!c) return;
+    if (c === 'fupload') { var kk = kpiById(S.view.id); if (kk) uploadPdf(kk, ev.target.getAttribute('data-key'), ev.target.files && ev.target.files[0]); return; }
+    if (c === 'bulkfile') { var bk = kpiById(S.view.id); if (bk) readBulkFile(bk, ev.target.files && ev.target.files[0]); return; }
+    if (c === 'year') { S.dash = null; loadDashboard(parseInt(ev.target.value, 10)); }
+    if (c === 'iyear') { S.dash = null; loadInfo(parseInt(ev.target.value, 10)); }
+    if (c === 'fstatus') { S.listFilters.status = ev.target.value; S.list = null; renderKpi(); }
+    if (c === 'fstatus2') { S.listFilters.status2 = ev.target.value; S.list = null; renderKpi(); }
+    if (c === 'ffak') { S.listFilters.fakulti = ev.target.value; S.list = null; renderKpi(); }
+  });
+
+  var qTimer = null;
+  document.addEventListener('input', function (ev) {
+    if (ev.target.getAttribute && ev.target.getAttribute('data-input') === 'q') {
+      var val = ev.target.value;
+      clearTimeout(qTimer);
+      qTimer = setTimeout(function () {
+        S.listFilters.q = val; S.list = null; var k = kpiById(S.view.id);
+        if (k) { call('api_list', S.token, k.id, S.listFilters).then(function (r) { S.list = r; var el = $('#q'); var pos = el ? el.selectionStart : 0; renderList(k); el = $('#q'); if (el) { el.focus(); el.setSelectionRange(pos, pos); } }); }
+      }, 300);
+    }
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') {
+      if (S.login) { S.login = null; render(); }
+      else if (S.navOpen) { S.navOpen = false; render(); }
+    }
+  });
+
+  // ------------------------------------------------------------------ mula
+  function boot() {
+    var t = store('get', 'utmx_token');
+    if (!t) { render(); return; }
+    S.token = t;
+    call('api_session', t).then(function (sess) { S.session = sess; render(); })
+      .catch(function () { S.token = null; store('del', 'utmx_token'); render(); });
+  }
+  boot();
+})();
+</script>
